@@ -11,7 +11,20 @@ export const FUNCTION_PERMISSION_KEYS = [
   "dnc_manage",
   "integrations_manage",
   "crm_manage",
+  /** Read team CRM + operational upsert/log (self/team). Write-key split deferred. */
+  "crm_view",
   "members_manage",
+  /** Owner-only invite (split from members_manage). */
+  "members_invite",
+  /** Owner-only role change / demote (split from members_manage). */
+  "members_change_role",
+  /** Owner-only User → Admin assignment. */
+  "assign_user_to_admin",
+  /** DNC delete (Owner any; Admin team-added only — enforced in later batch). */
+  "dnc_delete",
+  "reports_export",
+  "recordings_view_self",
+  "audit_view",
   "company_settings",
   "billing_view",
   "campaign_view",
@@ -31,6 +44,16 @@ export const functionPermissionPatchSchema = z.object(
 );
 
 export type FunctionPermissionPatch = z.infer<typeof functionPermissionPatchSchema>;
+
+/**
+ * Alias map (C4): old keys remain valid; new behavior prefers the new key.
+ * Do not delete old keys.
+ */
+export const PERMISSION_KEY_ALIASES: Record<string, FunctionPermissionKey | FunctionPermissionKey[]> = {
+  members_manage: ["members_manage", "members_invite", "members_change_role"],
+  crm_manage: ["crm_manage", "crm_view"],
+  dnc_manage: ["dnc_manage", "dnc_delete"],
+};
 
 export const ORG_ROLES = ["ORG_OWNER", "ORG_ADMIN", "AGENT"] as const;
 export type OrgRolePublic = (typeof ORG_ROLES)[number];
@@ -53,7 +76,15 @@ export function defaultPermissionsForOrgRole(role: OrgRolePublic): Record<Functi
     dnc_manage: false,
     integrations_manage: false,
     crm_manage: false,
+    crm_view: true,
     members_manage: false,
+    members_invite: false,
+    members_change_role: false,
+    assign_user_to_admin: false,
+    dnc_delete: false,
+    reports_export: false,
+    recordings_view_self: false,
+    audit_view: false,
     company_settings: false,
     billing_view: false,
     campaign_view: true,

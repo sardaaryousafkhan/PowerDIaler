@@ -24,6 +24,7 @@ export type {
 export {
   FUNCTION_PERMISSION_KEYS,
   ORG_ROLES,
+  PERMISSION_KEY_ALIASES,
   defaultPermissionsForOrgRole,
   functionPermissionKeySchema,
   functionPermissionPatchSchema,

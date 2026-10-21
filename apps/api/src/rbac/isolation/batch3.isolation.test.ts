@@ -104,15 +104,28 @@ describe("Batch 3 isolation (enforce on)", () => {
     });
   }
 
-  it("E07 — Admin A GET /dnc → team + Owner-shared only", async () => {
+  it("E07 — Admin A GET /dnc → team + Owner-shared only (null legacy excluded)", async () => {
     const res = await app.inject({ method: "GET", url: "/dnc", headers: auth("adminA") });
     assert.equal(res.statusCode, 200);
     const rows = res.json() as Array<{ e164: string; createdByUserId: string | null }>;
     const e164s = new Set(rows.map((r) => r.e164));
     assert.ok(e164s.has("+12025550121"), "own team entry");
-    assert.ok(e164s.has("+12025550123"), "Owner-shared");
-    assert.ok(e164s.has("+12025550124"), "legacy null = Owner-shared");
+    assert.ok(e164s.has("+12025550123"), "Owner-shared (createdBy=Owner)");
+    assert.ok(!e164s.has("+12025550124"), "null legacy is Owner-only — Admin must not see");
     assert.ok(!e164s.has("+12025550122"), "must not see Admin B entry");
+    assert.ok(
+      rows.every((r) => r.createdByUserId != null),
+      "Admin A → GET /dnc returns no rows where createdByUserId IS NULL",
+    );
+  });
+
+  it("E07 — Owner GET /dnc → includes null-legacy rows", async () => {
+    const res = await app.inject({ method: "GET", url: "/dnc", headers: auth("owner") });
+    assert.equal(res.statusCode, 200);
+    const rows = res.json() as Array<{ e164: string; createdByUserId: string | null }>;
+    const e164s = new Set(rows.map((r) => r.e164));
+    assert.ok(e164s.has("+12025550124"), "Owner sees null-legacy (pre-migration invisibility for Admin)");
+    assert.ok(e164s.has("+12025550121") && e164s.has("+12025550122") && e164s.has("+12025550123"));
   });
 
   it("E07 — Agent GET /dnc → 403 + audit", async () => {

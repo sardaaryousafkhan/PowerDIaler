@@ -29,18 +29,16 @@ export async function dncRoutes(app: FastifyInstance): Promise<void> {
         where: { organizationId: auth.orgId, orgRole: "ORG_OWNER", status: "ACTIVE" },
         select: { userId: true },
       });
+      // Owner-shared = createdByUserId is the org Owner (company-wide DNC).
+      // Null-legacy (pre-migration) = Owner-only — Admins must not see NULL rows (no cross-team leak).
       const allowedCreators = [
         auth.sub,
         ...(teamIds === "all" ? [] : teamIds),
         ...(ownerMembership ? [ownerMembership.userId] : []),
       ];
-      // Team-added + Owner-shared (incl. legacy rows with null createdByUserId treated as Owner-shared).
       where = {
         organizationId: auth.orgId,
-        OR: [
-          { createdByUserId: { in: allowedCreators } },
-          { createdByUserId: null },
-        ],
+        createdByUserId: { in: allowedCreators },
       };
     }
 

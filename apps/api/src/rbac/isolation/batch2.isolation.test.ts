@@ -81,18 +81,35 @@ describe("Batch 2 isolation (enforce on)", () => {
     });
   }
 
-  it("E01 — Admin A GET /admin/access/users → 200 team only (self + u1/u2/agent)", async () => {
+  it("E01 — Admin A GET /admin/access/users → 200 team only (self row + managed)", async () => {
     const res = await app.inject({ method: "GET", url: "/admin/access/users", headers: auth("adminA") });
     assert.equal(res.statusCode, 200);
-    const body = res.json() as { users: Array<{ id: string }> };
+    const body = res.json() as { users: Array<{ id: string; membershipId: string }> };
     const ids = new Set(body.users.map((u) => u.id));
-    assert.ok(ids.has(fx.adminA.userId), "Admin sees self");
+    // "self" = Admin's own membership row is returned in the list (response content), not merely authorized.
+    assert.ok(
+      body.users.some((u) => u.membershipId === fx.adminA.membershipId),
+      "response must include Admin A's own membership row",
+    );
+    assert.ok(ids.has(fx.adminA.userId));
     assert.ok(ids.has(fx.u1.userId));
     assert.ok(ids.has(fx.u2.userId));
     assert.ok(ids.has(fx.agent.userId));
     assert.ok(!ids.has(fx.u3.userId), "must not see Admin B's agent");
     assert.ok(!ids.has(fx.adminB.userId), "must not see peer Admin");
     assert.ok(!ids.has(fx.owner.userId), "must not see Owner");
+
+    const returnedMembershipIds = body.users.map((u) => u.membershipId);
+    const rows = await prisma.membership.findMany({
+      where: { id: { in: returnedMembershipIds }, organizationId: fx.orgId },
+      select: { id: true, managedByAdminId: true },
+    });
+    for (const row of rows) {
+      const ok =
+        row.id === fx.adminA.membershipId || row.managedByAdminId === fx.adminA.membershipId;
+      assert.ok(ok, `row ${row.id} must be self or managedByAdminId=A (got managedBy=${row.managedByAdminId})`);
+      assert.notEqual(row.managedByAdminId, fx.adminB.membershipId, "no Admin B team rows");
+    }
   });
 
   it("E01 — Owner sees all; Agent → 403 + audit", async () => {

@@ -50,3 +50,20 @@ export async function teamUserIdsForActor(auth: ScopedAuth): Promise<string[] | 
   }
   return [auth.sub];
 }
+
+/**
+ * E02 campaign ownership: Owner → any org campaign.
+ * Admin → campaign.startedByUserId is self or on Admin's team.
+ * Agent → never (callers should 403 via permission first).
+ */
+export async function isCampaignOwnedByActor(
+  auth: ScopedAuth,
+  campaign: { startedByUserId: string | null },
+): Promise<boolean> {
+  if (auth.orgRole === "ORG_OWNER") return true;
+  if (auth.orgRole !== "ORG_ADMIN") return false;
+  const starter = campaign.startedByUserId;
+  if (!starter) return false;
+  if (starter === auth.sub) return true;
+  return isUserInActorTeam(auth, starter);
+}

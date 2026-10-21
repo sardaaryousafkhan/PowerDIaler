@@ -430,10 +430,14 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/integrations/setup/:provider", async (req, reply) => {
-    if (!req.auth?.sub) return reply.code(401).send({ error: "Unauthorized" });
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
     const { requireOrg } = await import("../lib/orgAccess.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
     const { getOrgSecret } = await import("../lib/secrets.js");
-    const auth = await requireOrg(req, reply);
+    // E05: flag off → requireOrg; flag on → integrations_manage (Owner-only).
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "integrations_manage", "GET /integrations/setup/:provider")
+      : await requireOrg(req, reply);
     if (!auth) return;
     const provider = integrationProviderIdSchema.parse((req.params as { provider?: string }).provider);
     const fields = setupFieldsForProvider(provider);
@@ -479,7 +483,19 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/integrations/google_voice/bridge-health", async (req, reply) => {
-    if (!req.auth?.sub) return reply.code(401).send({ error: "Unauthorized" });
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requireOrg } = await import("../lib/orgAccess.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    // E06: flag off → any authenticated org member; flag on → integrations_manage.
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(
+          req,
+          reply,
+          "integrations_manage",
+          "GET /integrations/google_voice/bridge-health",
+        )
+      : await requireOrg(req, reply);
+    if (!auth) return;
     const health = await fetchGoogleVoiceBridgeHealth();
     if (!health) {
       return reply.code(503).send({
@@ -497,13 +513,22 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/integrations/zoom_phone/bridge-health", async (req, reply) => {
-    if (!req.auth?.sub) return reply.code(401).send({ error: "Unauthorized" });
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
     const { requireOrg } = await import("../lib/orgAccess.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
     const { readPreferredIntegrationKey } = await import("../lib/zoomPhoneAgent.js");
     const { fetchZoomBridgeHealthForOrg } = await import("../lib/bridgeHealth.js");
     const { loadZoomOrgCredentials } = await import("../lib/zoomOrgCredentials.js");
     const { env: runtimeEnv } = await import("../env.js");
-    const auth = await requireOrg(req, reply);
+    // E06: flag off → requireOrg; flag on → integrations_manage.
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(
+          req,
+          reply,
+          "integrations_manage",
+          "GET /integrations/zoom_phone/bridge-health",
+        )
+      : await requireOrg(req, reply);
     if (!auth) return;
     const preferred = await readPreferredIntegrationKey(auth.orgId);
     const creds = await loadZoomOrgCredentials(auth.orgId);

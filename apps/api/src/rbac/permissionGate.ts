@@ -17,12 +17,15 @@ type OrgAuthed = OrgAuth & { orgId: string; orgRole: OrgRolePublic; membershipId
 function enforceMatrixAllows(orgRole: OrgRolePublic, permission: FunctionPermissionKey): boolean {
   if (orgRole === "ORG_OWNER") return true;
   if (orgRole === "ORG_ADMIN") {
-    // Admin loses Owner-only keys; keeps operational crm_view
+    // Admin loses Owner-only keys; keeps operational crm_view + members_manage (team-scoped)
     if (permission === "integrations_manage") return false;
     if (permission === "crm_manage") return false;
     if (permission === "billing_view") return false;
     if (permission === "company_settings") return false;
+    if (permission === "members_invite") return false;
+    if (permission === "members_change_role") return false;
     if (permission === "crm_view") return true;
+    if (permission === "members_manage") return true;
     return true; // other operational keys until later batches narrow further
   }
   // AGENT

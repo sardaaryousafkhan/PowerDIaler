@@ -50,12 +50,30 @@ function requireOrgAdmin(req: FastifyRequest, reply: FastifyReply): boolean {
 
 export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
   app.get("/admin/access/users", async (req, reply) => {
-    const auth = await requireOrg(req, reply);
-    if (!auth) return;
-    if (!requireOrgAdmin(req, reply)) return;
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { teamUserIdsForActor } = await import("../rbac/teamScope.js");
 
+    // E01: flag off → baseline requireOrgAdmin; flag on → members_manage + team filter.
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "members_manage", "GET /admin/access/users")
+      : await requireOrg(req, reply);
+    if (!auth) return;
+    if (!isRbacEnforceAdminPerms()) {
+      if (!requireOrgAdmin(req, reply)) return;
+    }
+
+    const teamIds = isRbacEnforceAdminPerms() ? await teamUserIdsForActor(auth) : ("all" as const);
     const members = await prisma.membership.findMany({
-      where: { organizationId: auth.orgId, status: "ACTIVE" },
+      where: {
+        organizationId: auth.orgId,
+        status: "ACTIVE",
+        ...(teamIds === "all"
+          ? {}
+          : {
+              OR: [{ userId: auth.sub }, { userId: { in: teamIds } }],
+            }),
+      },
       include: {
         user: { select: { id: true, name: true, email: true, role: true, createdAt: true } },
       },
@@ -421,15 +439,38 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/campaigns/:id/assignments", async (req, reply) => {
-    const auth = await requireOrg(req, reply);
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { denyWithAudit, requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { isCampaignOwnedByActor } = await import("../rbac/teamScope.js");
+
+    // E02: flag off → baseline requireOrgAdmin; flag on → members_manage + owned campaign.
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "members_manage", "GET /campaigns/:id/assignments")
+      : await requireOrg(req, reply);
     if (!auth) return;
-    if (!requireOrgAdmin(req, reply)) return;
+    if (!isRbacEnforceAdminPerms()) {
+      if (!requireOrgAdmin(req, reply)) return;
+    }
+
     const id = (req.params as { id: string }).id;
     const campaign = await prisma.campaign.findFirst({
       where: { id, organizationId: auth.orgId },
-      select: { id: true },
+      select: { id: true, startedByUserId: true },
     });
     if (!campaign) return reply.code(404).send({ error: "Not found" });
+
+    if (isRbacEnforceAdminPerms() && auth.orgRole === "ORG_ADMIN") {
+      const owned = await isCampaignOwnedByActor(auth, campaign);
+      if (!owned) {
+        await denyWithAudit(reply, auth, {
+          path: "GET /campaigns/:id/assignments",
+          requiredPermission: "members_manage",
+          reason: "cross_team_campaign",
+        });
+        return;
+      }
+    }
+
     const rows = await prisma.campaignAssignment.findMany({
       where: { campaignId: id },
       include: { user: { select: { id: true, name: true, email: true } } },

@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "start:worker": "node dist/worker.js",
-    "test:rbac": "DEMO_MODE=1 RBAC_ENFORCE_ADMIN_PERMS=true DATABASE_URL=\"file:./prisma/rbac-test.db\" tsx --test src/rbac/isolation/isolation.skeleton.test.ts src/rbac/isolation/batch1.isolation.test.ts src/rbac/isolation/batch2.isolation.test.ts src/rbac/isolation/batch3.isolation.test.ts",
+    "test:rbac": "DEMO_MODE=1 RBAC_ENFORCE_ADMIN_PERMS=true DATABASE_URL=\"file:./prisma/rbac-test.db\" tsx --test src/rbac/isolation/isolation.skeleton.test.ts src/rbac/isolation/batch1.isolation.test.ts src/rbac/isolation/batch2.isolation.test.ts src/rbac/isolation/batch3.isolation.test.ts src/rbac/isolation/batch4.prep0.isolation.test.ts",
     "test": "pnpm run test:rbac"
   },
   "dependencies": {

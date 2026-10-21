@@ -95,7 +95,12 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.patch("/admin/access/users/:id", async (req, reply) => {
-    const auth = await requirePermission(req, reply, "members_manage");
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { denyWithAudit, requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    // Batch 4-prep-0: re-key to members_change_role (Owner-only when enforce on).
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "members_change_role", "PATCH /admin/access/users/:id")
+      : await requirePermission(req, reply, "members_manage");
     if (!auth) return;
     const id = (req.params as { id: string }).id;
     const body = patchSchema.parse(req.body);
@@ -106,6 +111,29 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
     if (!membership) return reply.code(404).send({ error: "Member not found" });
     if (membership.orgRole === "ORG_OWNER" && auth.orgRole !== "ORG_OWNER" && !isPlatformAdmin(auth)) {
       return reply.code(400).send({ error: "Only an org owner can edit another owner." });
+    }
+
+    // Privilege-escalation guards (always): no self-promote to Owner; only Owner may set ORG_OWNER.
+    if (body.orgRole === "ORG_OWNER") {
+      if (id === auth.sub || auth.orgRole !== "ORG_OWNER") {
+        if (isRbacEnforceAdminPerms()) {
+          await denyWithAudit(reply, auth, {
+            path: "PATCH /admin/access/users/:id",
+            requiredPermission: "members_change_role",
+            reason: "privilege_escalation_blocked",
+          });
+          return;
+        }
+        return reply.code(403).send({ error: "Only an org owner can grant owner role." });
+      }
+    }
+    if (isRbacEnforceAdminPerms() && auth.orgRole !== "ORG_OWNER" && body.orgRole) {
+      await denyWithAudit(reply, auth, {
+        path: "PATCH /admin/access/users/:id",
+        requiredPermission: "members_change_role",
+        reason: "privilege_escalation_blocked",
+      });
+      return;
     }
 
     const current = resolvePermissions(membership.orgRole, membership.permissions);
@@ -231,7 +259,12 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
 
   /** Remove a member from the company (keeps the user account; disables membership). */
   app.delete("/org/members/:id", async (req, reply) => {
-    const auth = await requirePermission(req, reply, "members_manage");
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    // Batch 4-prep-0: re-key to members_change_role (Owner-only when enforce on).
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "members_change_role", "DELETE /org/members/:id")
+      : await requirePermission(req, reply, "members_manage");
     if (!auth) return;
     const id = (req.params as { id: string }).id;
     if (id === auth.sub) return reply.code(400).send({ error: "You cannot remove yourself." });

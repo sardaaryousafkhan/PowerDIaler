@@ -315,10 +315,13 @@ model DncEntry {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   e164           String
+  /** Who added this entry — used for Admin team + Owner-shared DNC scope (E07). */
+  createdByUserId String?
   createdAt      DateTime      @default(now())
 
   @@unique([organizationId, e164])
   @@index([organizationId])
+  @@index([createdByUserId])
 }
 
 model IntegrationPreference {

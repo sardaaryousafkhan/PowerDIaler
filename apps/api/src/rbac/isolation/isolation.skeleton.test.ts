@@ -50,10 +50,26 @@ describe("C7 isolation suite skeleton", () => {
   });
 });
 
-describe("C7 remaining endpoints (Batch 3+)", () => {
-  const done = new Set(["E01", "E02", "E03", "E04", "E05", "E06", "E09", "E10", "E11", "E12"]);
+describe("C7 remaining endpoints (post Batch 3)", () => {
+  const done = new Set([
+    "E01",
+    "E02",
+    "E03",
+    "E04",
+    "E05",
+    "E06",
+    "E07",
+    "E08",
+    "E09",
+    "E10",
+    "E11",
+    "E12",
+  ]);
   const pending = C7_ISOLATION_MATRIX.filter((r) => !done.has(r.id));
   for (const row of pending) {
     it(`TODO ${row.id} ${row.method} ${row.path}`, { todo: true }, () => {});
   }
+  it("C7 matrix fully covered by Batches 1–3 (no pending E-rows)", () => {
+    assert.equal(pending.length, 0);
+  });
 });

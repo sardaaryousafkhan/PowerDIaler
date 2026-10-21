@@ -4,6 +4,8 @@ import { issueAuthToken, verifyAuthToken, type AuthClaims } from "../../auth.js"
 import { adminAccessRoutes } from "../../routes/adminAccess.js";
 import { integrationRoutes } from "../../routes/integrations.js";
 import { crmRoutes } from "../../routes/crm.js";
+import { dncRoutes } from "../../routes/dnc.js";
+import { campaignRoutes } from "../../routes/campaigns.js";
 import type { OrgRolePublic } from "@powerdialer/shared";
 
 export async function buildBatch1TestApp() {
@@ -28,6 +30,8 @@ export async function buildBatch1TestApp() {
   await adminAccessRoutes(app);
   await integrationRoutes(app);
   await crmRoutes(app);
+  await dncRoutes(app);
+  await campaignRoutes(app);
   await app.ready();
   return app;
 }

@@ -147,7 +147,12 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
 
   /** Create an employee / member account directly under the company (no invite email needed). */
   app.post("/org/members", async (req, reply) => {
-    const auth = await requirePermission(req, reply, "members_manage");
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    // Batch 3: re-key to members_invite (Owner-only when enforce on).
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "members_invite", "POST /org/members")
+      : await requirePermission(req, reply, "members_manage");
     if (!auth) return;
     const body = createMemberSchema.parse(req.body);
     const email = body.email.toLowerCase();
@@ -255,7 +260,12 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/org/invites", async (req, reply) => {
-    const auth = await requirePermission(req, reply, "members_manage");
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    // Batch 3: re-key to members_invite (Owner-only when enforce on).
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "members_invite", "POST /org/invites")
+      : await requirePermission(req, reply, "members_manage");
     if (!auth) return;
     const body = inviteSchema.parse(req.body);
     const email = body.email.toLowerCase();
@@ -297,7 +307,12 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/org/invites", async (req, reply) => {
-    const auth = await requirePermission(req, reply, "members_manage");
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    // Batch 3: re-key to members_invite (Owner-only when enforce on).
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "members_invite", "GET /org/invites")
+      : await requirePermission(req, reply, "members_manage");
     if (!auth) return;
     const rows = await prisma.invitation.findMany({
       where: { organizationId: auth.orgId },

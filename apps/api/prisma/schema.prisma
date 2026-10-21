@@ -1,0 +1,426 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // Local/demo uses SQLite; production should set provider postgresql via migrate (see docs/deployment.md).
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum CampaignStatus {
+  DRAFT
+  RUNNING
+  PAUSED
+  COMPLETED
+}
+
+enum CampaignKind {
+  DIAL
+  SMS
+}
+
+enum ContactStatus {
+  PENDING
+  DIALING
+  DIALED
+  SKIPPED
+}
+
+enum CallDisposition {
+  QUEUED
+  RINGING
+  IN_PROGRESS
+  COMPLETED
+  BUSY
+  NO_ANSWER
+  FAILED
+  CANCELED
+  UNKNOWN
+}
+
+enum SmsStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  UNKNOWN
+}
+
+/** Platform-level role (super-admin). Org access is via Membership.orgRole. */
+enum UserRole {
+  USER
+  ADMIN
+  OWNER
+}
+
+enum OrgRole {
+  ORG_OWNER
+  ORG_ADMIN
+  AGENT
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model Plan {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  seatLimit      Int      @default(5)
+  smsMonthlyCap  Int      @default(1000)
+  priceCents     Int      @default(0)
+  createdAt      DateTime @default(now())
+  organizations  Organization[]
+  subscriptions  Subscription[]
+}
+
+model Organization {
+  id          String             @id @default(cuid())
+  name        String
+  slug        String             @unique
+  status      OrganizationStatus @default(ACTIVE)
+  planId      String?
+  plan        Plan?              @relation(fields: [planId], references: [id])
+  settings    String             @default("{}")
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  memberships           Membership[]
+  invitations           Invitation[]
+  campaigns             Campaign[]
+  dncEntries            DncEntry[]
+  integrationPreference IntegrationPreference?
+  secrets               OrganizationSecret[]
+  crmContacts           CrmContact[]
+  crmActivities         CrmActivity[]
+  webhookEvents         WebhookEvent[]
+  auditLogs             AuditLog[]
+  subscription          Subscription?
+}
+
+model Membership {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orgRole        OrgRole          @default(AGENT)
+  status         MembershipStatus @default(ACTIVE)
+  /** JSON map of FunctionPermissionKey → boolean overrides for AGENT; owners/admins ignore. */
+  permissions    String           @default("{}")
+  /**
+   * Admin who manages this AGENT. Null = Owner-direct team (Owner scope).
+   * Points at the manager's Membership.id (ORG_ADMIN), not userId.
+   */
+  managedByAdminId String?
+  managedByAdmin   Membership?  @relation("AdminTeam", fields: [managedByAdminId], references: [id], onDelete: SetNull)
+  managedAgents    Membership[] @relation("AdminTeam")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, status])
+  @@index([managedByAdminId])
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  orgRole        OrgRole          @default(AGENT)
+  token          String           @unique
+  status         InvitationStatus @default(PENDING)
+  invitedById    String?
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  createdAt      DateTime         @default(now())
+
+  @@index([organizationId, email])
+}
+
+model CampaignAssignment {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([campaignId, userId])
+  @@index([userId])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actorUserId    String?
+  action         String
+  entityType     String?
+  entityId       String?
+  meta           String   @default("{}")
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([actorUserId])
+}
+
+model OrganizationSecret {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  key            String
+  /** AES-GCM ciphertext (base64) */
+  ciphertext     String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, key])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  organizationId       String             @unique
+  organization         Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  planId               String
+  plan                 Plan               @relation(fields: [planId], references: [id])
+  status               SubscriptionStatus @default(TRIALING)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+}
+
+model Campaign {
+  id                     String         @id @default(cuid())
+  /** Required after backfill; nullable only during SQLite multi-tenant migration. */
+  organizationId         String?
+  organization           Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name                   String
+  kind                   CampaignKind   @default(DIAL)
+  status                 CampaignStatus @default(DRAFT)
+  startedByUserId        String?
+  fromPhone              String
+  voiceMessage           String
+  voicemailDropEnabled   Boolean        @default(false)
+  voicemailMessage       String?
+  voicemailAudioData     String?
+  voicemailAudioMimeType String?
+  smsTemplate            String?
+  consentNotes           String
+  consentAttestedAt      DateTime?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  contacts               Contact[]
+  callAttempts           CallAttempt[]
+  smsAttempts            SmsAttempt[]
+  assignments            CampaignAssignment[]
+
+  @@index([organizationId, status])
+}
+
+model Contact {
+  id           String        @id @default(cuid())
+  campaignId   String
+  campaign     Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  phoneE164    String
+  name         String?
+  notes        String?
+  metadata     Json?
+  status       ContactStatus @default(PENDING)
+  createdAt    DateTime      @default(now())
+  callAttempts CallAttempt[]
+  smsAttempts  SmsAttempt[]
+
+  @@index([campaignId, status])
+  @@index([phoneE164])
+}
+
+model CallAttempt {
+  id             String          @id @default(cuid())
+  campaignId     String
+  campaign       Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId      String
+  contact        Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  externalCallId String?
+  idempotencyKey String          @unique
+  disposition    CallDisposition @default(QUEUED)
+  notes          String?
+  rawPayload     Json?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([campaignId])
+  @@index([externalCallId])
+}
+
+model SmsAttempt {
+  id                String    @id @default(cuid())
+  campaignId        String
+  campaign          Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId         String
+  contact           Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  externalMessageId String?
+  idempotencyKey    String    @unique
+  status            SmsStatus @default(QUEUED)
+  body              String
+  rawPayload        Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([campaignId])
+  @@index([externalMessageId])
+  @@index([createdAt])
+}
+
+model WebhookEvent {
+  id             String        @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  provider       String
+  type           String
+  rawBody        String
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId])
+}
+
+model DncEntry {
+  id             String        @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  e164           String
+  createdAt      DateTime      @default(now())
+
+  @@unique([organizationId, e164])
+  @@index([organizationId])
+}
+
+model IntegrationPreference {
+  id                      String        @id @default(cuid())
+  organizationId          String?       @unique
+  organization            Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  preferredIntegrationKey String        @default("twilio")
+  smsPerMinute            Int           @default(45)
+  updatedAt               DateTime      @updatedAt
+}
+
+model User {
+  id              String               @id @default(cuid())
+  name            String
+  email           String               @unique
+  passwordHash    String?
+  googleSub       String?              @unique
+  zoomPhoneUserId String?
+  role            UserRole             @default(USER)
+  tokenVersion    Int                  @default(0)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  preference      UserPreference?
+  functionAccess  UserFunctionAccess?
+  memberships     Membership[]
+  assignments     CampaignAssignment[]
+  passwordResets  PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+model UserPreference {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  settings  String   @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/** Legacy per-user toggles; prefer Membership.permissions for org-scoped RBAC. */
+model UserFunctionAccess {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissions String   @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CrmContact {
+  id              String        @id @default(cuid())
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider        String
+  externalId      String?
+  email           String?
+  phoneE164       String?
+  firstName       String?
+  lastName        String?
+  company         String?
+  ownerExternalId String?
+  /** Power Dialer user this contact is assigned to (team-scope writes). */
+  assignedUserId  String?
+  metadata        Json?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([organizationId, provider])
+  @@index([email])
+  @@index([phoneE164])
+  @@index([assignedUserId])
+}
+
+model CrmActivity {
+  id                String        @id @default(cuid())
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  provider          String
+  contactExternalId String?
+  contactEmail      String?
+  campaignId        String?
+  contactId         String?
+  /** Power Dialer user this activity belongs to (self/team scope). */
+  assignedUserId    String?
+  type              String
+  status            String?
+  direction         String?
+  occurredAt        DateTime
+  summary           String
+  raw               Json?
+  createdAt         DateTime     @default(now())
+
+  @@index([organizationId, provider, occurredAt])
+  @@index([campaignId])
+  @@index([assignedUserId])
+}

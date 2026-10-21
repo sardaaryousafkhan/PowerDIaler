@@ -1,0 +1,7 @@
+.env
+prisma/bridge.db
+prisma/bridge.db-journal
+prisma/migrations/dev.db*
+src/generated/
+dist/
+node_modules/

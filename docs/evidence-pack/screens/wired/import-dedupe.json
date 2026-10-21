@@ -1,0 +1,8 @@
+{
+  "created": 2,
+  "skippedDuplicate": 2,
+  "skippedRows": [
+    {"phone": "+12025550101", "reason": "duplicate"},
+    {"phone": "+12025550101", "reason": "duplicate"}
+  ]
+}

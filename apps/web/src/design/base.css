@@ -1,0 +1,210 @@
+/* Base reset + typography — Obsidian & Rosé */
+
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  size-adjust: 100%;
+}
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist";
+  src: url("/fonts/Geist-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("/fonts/GeistMono-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/fonts/InstrumentSerif-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--canvas);
+  color: var(--text-hi);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 22px;
+  letter-spacing: -0.006em;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--canvas);
+  color: var(--text-hi);
+}
+
+#root {
+  min-height: 100vh;
+  position: relative;
+}
+
+/* 3% grain — noticeable when removed */
+.app-noise {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 160 160' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+/* 1px light seam across shell top */
+.app-seam {
+  pointer-events: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  z-index: 9999;
+  background: var(--seam-top);
+}
+
+a {
+  color: var(--rose-500);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--rose-300);
+}
+
+h1,
+.h1 {
+  font-size: 30px;
+  line-height: 36px;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  margin: 0;
+}
+h2,
+.h2 {
+  font-size: 22px;
+  line-height: 28px;
+  letter-spacing: -0.016em;
+  font-weight: 600;
+  margin: 0;
+}
+h3,
+.h3 {
+  font-size: 17px;
+  line-height: 24px;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  margin: 0;
+}
+
+.display {
+  font-size: 40px;
+  line-height: 44px;
+  letter-spacing: -0.024em;
+  font-weight: 500;
+}
+.display--xl {
+  font-size: 72px;
+  line-height: 72px;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.display--timer {
+  font-size: 96px;
+  line-height: 96px;
+  letter-spacing: -0.03em;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.editorial {
+  font-family: var(--font-serif);
+  font-weight: 400;
+}
+.editorial--hero {
+  font-family: var(--font-serif);
+  font-size: 56px;
+  line-height: 60px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.mono,
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.muted,
+.subtle {
+  color: var(--text-mid);
+}
+.caption {
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.005em;
+  font-weight: 500;
+}
+.micro {
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--rose-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 120ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 120ms !important;
+  }
+}

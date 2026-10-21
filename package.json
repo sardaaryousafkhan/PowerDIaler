@@ -1,0 +1,28 @@
+{
+  "name": "power-dialer",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "demo": "sh scripts/run-demo.sh",
+    "dev": "pnpm run --parallel dev:api dev:web",
+    "dev:api": "pnpm --filter @powerdialer/api run dev",
+    "dev:web": "pnpm --filter @powerdialer/web run dev",
+    "dev:bridge": "pnpm --filter @powerdialer/zoom-phone-bridge run dev",
+    "dev:google-bridge": "pnpm --filter @powerdialer/google-voice-bridge run dev",
+    "dev:ringcentral-bridge": "pnpm --filter @powerdialer/ringcentral-bridge run dev",
+    "db:generate": "pnpm --filter @powerdialer/api exec prisma generate",
+    "db:migrate": "pnpm --filter @powerdialer/api exec prisma migrate dev",
+    "db:push": "pnpm --filter @powerdialer/api exec prisma db push",
+    "test:rbac": "pnpm --filter @powerdialer/api run test:rbac",
+    "test": "pnpm run test:rbac",
+    "worker": "pnpm --filter @powerdialer/api run worker",
+    "desktop:dev": "pnpm --filter @powerdialer/web run build && pnpm --filter @powerdialer/desktop run dev",
+    "desktop:prep": "sh scripts/prepare-desktop.sh",
+    "desktop:dist:mac": "pnpm run desktop:prep && pnpm --filter @powerdialer/desktop run dist:mac",
+    "desktop:dist:win": "pnpm run desktop:prep && pnpm --filter @powerdialer/desktop run dist:win"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

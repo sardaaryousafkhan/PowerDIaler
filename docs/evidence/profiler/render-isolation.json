@@ -1,0 +1,5 @@
+{
+  "detailDelta5s": 2,
+  "timerDelta5s": 7,
+  "note": "detailDelta should stay near 0–2; timerDelta ~5 if 1Hz isolated"
+}

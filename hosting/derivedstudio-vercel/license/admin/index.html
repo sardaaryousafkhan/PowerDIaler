@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DashDialer license admin</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 40px auto; padding: 0 16px; color: #16151f; }
+    label { display: block; margin: 12px 0 4px; font-weight: 600; font-size: 0.9rem; }
+    input { width: 100%; padding: 10px; border: 1px solid #d8dce8; border-radius: 8px; box-sizing: border-box; }
+    button { margin-top: 16px; padding: 10px 16px; border: 0; border-radius: 10px; background: #5a48e8; color: #fff; font-weight: 700; cursor: pointer; }
+    pre { background: #f5f6fc; padding: 12px; border-radius: 8px; overflow: auto; }
+    .muted { color: #5c5a6e; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <h1>DashDialer licenses</h1>
+  <p class="muted">Create a key after a customer pays. Paste the key into their DashDialer License screen.</p>
+  <label>Admin token</label>
+  <input id="adminToken" type="password" autocomplete="off" />
+  <label>Customer label</label>
+  <input id="label" placeholder="Customer name" />
+  <label>Max machines</label>
+  <input id="maxMachines" type="number" value="2" min="1" max="20" />
+  <button id="create">Create license</button>
+  <pre id="out"></pre>
+  <script>
+    document.getElementById('create').onclick = async () => {
+      const out = document.getElementById('out');
+      out.textContent = 'Working…';
+      try {
+        const res = await fetch('/license/api/verify.php', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            adminToken: document.getElementById('adminToken').value,
+            label: document.getElementById('label').value,
+            maxMachines: Number(document.getElementById('maxMachines').value) || 2,
+          }),
+        });
+        const data = await res.json();
+        out.textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        out.textContent = String(e);
+      }
+    };
+  </script>
+</body>
+</html>

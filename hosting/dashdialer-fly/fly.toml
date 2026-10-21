@@ -1,0 +1,38 @@
+app = "derivedstudio-dashdialer"
+primary_region = "iad"
+
+[build]
+  # Deploy from repo root: fly deploy -c hosting/dashdialer-fly/fly.toml --dockerfile hosting/dashdialer-fly/Dockerfile
+  dockerfile = "hosting/dashdialer-fly/Dockerfile"
+
+[env]
+  DEMO_MODE = "1"
+  NODE_ENV = "production"
+  PORT = "4000"
+  GATEWAY_PORT = "8080"
+  HOST = "127.0.0.1"
+  DATABASE_URL = "file:/data/dashdialer.db"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[http_service.checks]]
+  interval = "15s"
+  timeout = "5s"
+  grace_period = "45s"
+  method = "GET"
+  path = "/healthz"
+
+[mounts]
+  source = "dashdialer_data"
+  destination = "/data"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

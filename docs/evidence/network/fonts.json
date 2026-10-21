@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Geist-Regular.woff2",
+    "start": 8,
+    "size": 300
+  },
+  {
+    "name": "Geist-Medium.woff2",
+    "start": 8,
+    "size": 300
+  },
+  {
+    "name": "Geist-SemiBold.woff2",
+    "start": 8,
+    "size": 300
+  },
+  {
+    "name": "GeistMono-Regular.woff2",
+    "start": 8,
+    "size": 300
+  },
+  {
+    "name": "GeistMono-Medium.woff2",
+    "start": 8,
+    "size": 300
+  },
+  {
+    "name": "InstrumentSerif-Regular.woff2",
+    "start": 8,
+    "size": 300
+  }
+]

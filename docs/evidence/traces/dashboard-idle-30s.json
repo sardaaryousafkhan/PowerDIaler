@@ -1,0 +1,15 @@
+{
+  "durationMs": 30000,
+  "frameCount": 1802,
+  "avgFps": 60.1,
+  "worstFrameMs": 18.8,
+  "worstFrameAtMs": 27321,
+  "framesOver16_6": 937,
+  "framesOver33": 0,
+  "spikeTimestamps": [],
+  "note": "rAF sample; health polls may appear in network",
+  "mainThreadRepeating": {
+    "healthishRequests": 3,
+    "note": "No React timer on dashboard; FPS sample uses rAF only for measurement"
+  }
+}

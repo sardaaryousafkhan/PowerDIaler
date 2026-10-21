@@ -1,0 +1,17 @@
+**/node_modules
+**/.git
+**/dist
+apps/desktop
+apps/desktop/**
+**/release
+**/*.db
+**/.env
+**/.env.*
+!**/.env.example
+hosting/deploy-out
+hosting/derivedstudio-vercel/.vercel
+.tools
+**/.DS_Store
+agent-transcripts
+**/playwright-report
+**/test-results

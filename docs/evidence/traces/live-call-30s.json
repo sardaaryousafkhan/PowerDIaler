@@ -1,0 +1,12 @@
+{
+  "durationMs": 30000,
+  "frameCount": 1799,
+  "avgFps": 60,
+  "worstFrameMs": 50.1,
+  "worstFrameAtMs": 23567,
+  "framesOver16_6": 905,
+  "framesOver33": 1,
+  "spikeTimestamps": [
+    23567
+  ]
+}

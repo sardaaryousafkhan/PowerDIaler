@@ -1,0 +1,15 @@
+Removed (rm — project has no .git at root):
+  apps/web/src/styles.css
+  apps/web/src/theme-vibrant.css
+  apps/web/src/site.css
+
+=== rm simulation output ===
+rm apps/web/src/styles.css apps/web/src/theme-vibrant.css apps/web/src/site.css
+
+=== ls proof (must not exist) ===
+ls: apps/web/src/site.css: No such file or directory
+ls: apps/web/src/styles.css: No such file or directory
+ls: apps/web/src/theme-vibrant.css: No such file or directory
+
+=== ThemeToggle render sites ===
+apps/web/src/DialerApp.tsx:436:                    <ThemeToggle />

@@ -1,0 +1,20 @@
+Removed (rm — project has no .git at root):
+  apps/web/src/styles.css
+  apps/web/src/theme-vibrant.css
+  apps/web/src/site.css
+
+=== ls proof (must not exist) ===
+ls: apps/web/src/site.css: No such file or directory
+ls: apps/web/src/styles.css: No such file or directory
+ls: apps/web/src/theme-vibrant.css: No such file or directory
+
+=== rg zero refs ===
+(no matches — pass)
+
+=== ThemeToggle usages (must be 1 render site in DialerApp command bar) ===
+apps/web/src/DialerApp.tsx:7:import { ThemeToggle } from "./components/ThemeToggle.js";
+apps/web/src/DialerApp.tsx:436:                    <ThemeToggle />
+apps/web/src/components/ThemeToggle.tsx:15:export function ThemeToggle(): ReactElement {
+
+=== coming soon (must be empty) ===
+(none — pass)

@@ -1,0 +1,73 @@
+Power Dialer — automated live demo log (cursor-ide-browser MCP)
+================================================================
+Run date: 2026-04-21 (session time per machine)
+
+PRE-CHECKS (shell)
+------------------
+- GET http://127.0.0.1:4000/health  → 200 {"ok":true}
+- GET http://127.0.0.1:5173/      → 200
+
+BROWSER TAB
+------------
+- viewId: 48b5e5 (existing Cursor built-in browser tab)
+
+AUTOMATION STEPS (MCP)
+----------------------
+1) browser_navigate → http://127.0.0.1:5173/
+   - Confirmed campaign table with multiple "Open" links (refs e3–e7).
+
+2) browser_click → first "Open" (ref e3)
+   - Landed on /campaigns/cmo8wnrnr000fzvu5dphe4tw5
+   - browser_wait_for text "Live demo" → OK
+   - Snapshot: headings "Live demo (watch this)", Import CSV, SMS, Contacts, Recent attempts
+   - Buttons: Start dialing, Pause, Resume visible
+   - Network: repeating GET /api/campaigns/:id and /attempts → all 200
+
+3) SMS flow (same campaign page)
+   - browser_fill SMS textarea (ref e14) with automated message
+   - browser_click "Queue SMS to all contacts" (ref e15)
+   - During submit: Start/Pause/Resume + Queue disabled (busy) — expected
+   - Network: POST /api/campaigns/cmo8wnrnr000fzvu5dphe4tw5/sms → 200
+   - After wait: controls re-enabled
+
+4) New campaign (full form)
+   - browser_navigate → /new
+   - Filled: name "Agent E2E automated run", from +12025550109, voice line, consent notes
+   - browser_click consent checkbox (ref e8) → state included "checked"
+   - browser_click "Create campaign" (ref e9) → button disabled while submitting
+   - Redirect: /campaigns/cmo8x53tr000wzvu5lea1fg3z
+   - Snapshot heading level 2: "Agent E2E automated run"
+
+5) DNC page
+   - browser_navigate → /dnc
+   - Filled +12025550999, clicked Add → API confirmed row (curl /dnc count 1)
+   - Snapshot showed "Remove" button
+   - Clicked Remove → entry cleared (interactive snapshot no Remove)
+
+6) Home list
+   - browser_navigate → /
+   - browser_wait_for "Agent E2E" → OK
+   - Table shows new campaign as DRAFT, 0 contacts (expected until CSV import)
+
+CONSOLE (browser_console_messages)
+------------------------------------
+- Vite HMR connect logs (normal)
+- React DevTools suggestion (warning, benign)
+- [CursorBrowser] native dialog override notices (benign)
+
+ISSUES / NOTES
+--------------
+- Native alert() after SMS queue is auto-handled by Cursor browser (non-blocking); no manual dismiss needed.
+- Accessibility tree does not always list every table cell; use headings + network panel for assertions.
+- Checkbox on /new showed "readonly" in a11y snapshot but still accepted click to "checked".
+
+ARTIFACTS
+---------
+- Screenshots saved by MCP under system temp, filenames:
+  auto-demo-01-campaign-detail.png
+  auto-demo-final-campaign-list.png
+
+NEW DATA CREATED BY THIS RUN
+-----------------------------
+- Campaign ID: cmo8x53tr000wzvu5lea1fg3z  ("Agent E2E automated run", DRAFT, 0 contacts)
+- DNC test number +12025550999 was added then removed (cleanup).

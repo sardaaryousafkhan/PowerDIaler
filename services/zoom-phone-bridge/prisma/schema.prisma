@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model BridgeCall {
+  id                 String    @id @default(cuid())
+  idempotencyKey     String    @unique
+  externalCallId     String    @unique
+  campaignId         String
+  contactId          String
+  statusCallbackUrl  String
+  agentZoomUserId    String?
+  callType           String    @default("agent")
+  correlationId      String?
+  disposition        String    @default("QUEUED")
+  terminalAt         DateTime?
+  voicemailDropEnabled Boolean @default(false)
+  voiceMessage       String?
+  voiceInstructionsUrl String?
+  voicemailAudioUrl  String?
+  recordingUrl       String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([externalCallId])
+  @@index([terminalAt])
+}
+
+model BridgeSms {
+  id                String   @id @default(cuid())
+  idempotencyKey    String   @unique
+  externalMessageId String   @unique
+  statusCallbackUrl String?
+  correlationId     String?
+  status            String   @default("QUEUED")
+  terminalAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model CallbackOutbox {
+  id          String   @id @default(cuid())
+  targetUrl   String
+  body        String
+  signature   String
+  attempts    Int      @default(0)
+  nextRetryAt DateTime @default(now())
+  lastError   String?
+  deadLetter  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([nextRetryAt, deadLetter])
+}
+
+model WebhookDedup {
+  id        String   @id @default(cuid())
+  dedupeKey String   @unique
+  createdAt DateTime @default(now())
+}

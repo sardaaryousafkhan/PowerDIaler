@@ -1,0 +1,22 @@
+{
+  "build": "vite preview http://127.0.0.1:4173 (production)",
+  "NOT_dev": "Prior demo used Vite HMR on :5173 — that is NOT a valid perf measurement",
+  "cold": { "fcp_ms": 144, "dcl_ms": 77, "load_ms": 77 },
+  "backdrop_filter": {
+    "count_in_cssom": 4,
+    "selectors": [".call-dock", ".cmdk"],
+    "removed": [".command-bar", ".cmdk-backdrop", ".toast", ".auth-card--glass"]
+  },
+  "fonts": {
+    "woff2_fetches_on_dashboard": 6,
+    "all_start_time_ms": 20,
+    "repeated_on_nav": false
+  },
+  "prefetch": { "delta_CampaignList_on_hover": 1, "log": ["/campaigns@30748"] },
+  "campaigns_nav": { "shell_ms": 7, "full_ms": 323, "row_dom_nodes": 2 },
+  "start_dialing_optimistic": { "shell_ms": 6, "canvas_waveform": true },
+  "live_call_2s": { "avg_fps": 61, "worst_frame_ms": 19, "target_worst": 16.6 },
+  "press_pointerdown_visual_ms": 14,
+  "main_chunk_gzip_kb_before_lazy": 217,
+  "main_chunk_gzip_kb_after": 147
+}

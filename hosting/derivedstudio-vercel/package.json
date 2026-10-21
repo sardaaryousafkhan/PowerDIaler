@@ -1,0 +1,8 @@
+{
+  "name": "derivedstudio-com",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "vercel": "^64.5.0"
+  }
+}

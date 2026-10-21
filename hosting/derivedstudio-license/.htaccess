@@ -1,0 +1,24 @@
+# Deny direct access to env, lib and sql when this folder is served as /license/
+<FilesMatch "^\.(env|git|htaccess)">
+  Require all denied
+</FilesMatch>
+<FilesMatch "\.(sql|md|example)$">
+  Require all denied
+</FilesMatch>
+
+Options -Indexes
+
+RewriteEngine On
+RewriteRule ^lib/ - [F,L]
+RewriteRule ^sql/ - [F,L]
+
+# Force HTTPS for the whole license folder (admin cookies are marked Secure).
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "no-referrer"
+</IfModule>

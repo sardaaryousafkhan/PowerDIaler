@@ -1,0 +1,44 @@
+{
+  "diagnosed_before_fix": [
+    {
+      "id": "dev-mode",
+      "cause": "User demo ran on Vite dev (:5173) with HMR — 3–10x slower than production",
+      "evidence": "curl :5173 vs :4173 preview"
+    },
+    {
+      "id": "waveform-react-state",
+      "cause": "LiveWaveform setState every 90ms × 40 bars → parent re-renders",
+      "fix": "Canvas rAF draw, no React state"
+    },
+    {
+      "id": "timer-tree",
+      "cause": "sessionSeconds in CampaignDetail re-rendered entire ~1100-line page every 1s",
+      "fix": "CallSessionTimer isolated component"
+    },
+    {
+      "id": "backdrop-command-bar",
+      "cause": "backdrop-filter blur(12px) on full-width sticky command bar",
+      "fix": "Removed; solid canvas background"
+    },
+    {
+      "id": "backdrop-cmdk-overlay",
+      "cause": "backdrop-filter on full-viewport .cmdk-backdrop",
+      "fix": "Removed blur; dim overlay only"
+    },
+    {
+      "id": "eager-routes",
+      "cause": "Dashboard+CampaignList in main chunk (~780KB / 217KB gzip)",
+      "fix": "lazy() + hover prefetch; main ~477KB / 147KB gzip"
+    },
+    {
+      "id": "framer-route",
+      "cause": "Framer Motion opacity+y on every pathname change",
+      "fix": "Removed; plain route-shell div"
+    },
+    {
+      "id": "campaign-list-dom",
+      "cause": "Unvirtualized campaign rows",
+      "fix": "VirtualizedRows window ~20 rows"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "name": "@powerdialer/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DashDialer desktop shell (local API + UI)",
+  "author": "Derived Studio",
+  "main": "main.cjs",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:all": "electron-builder --mac --win"
+  },
+  "build": {
+    "appId": "com.derivedstudio.dashdialer",
+    "productName": "DashDialer",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "static-server.cjs",
+      "license-store.cjs",
+      "assets/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/dist",
+        "to": "web-dist",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "runtime",
+        "to": "runtime",
+        "filter": ["**/*"]
+      }
+    ],
+    "asar": true,
+    "mac": {
+      "category": "public.app-category.business",
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] }
+      ],
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "DashDialer uses the microphone for calls."
+      },
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  }
+}

@@ -1,0 +1,2 @@
+=== removed settings fields (must be empty in src) ===
+(none — pass)

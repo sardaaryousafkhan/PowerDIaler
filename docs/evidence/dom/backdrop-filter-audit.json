@@ -1,0 +1,6 @@
+[
+  ".call-dock { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%); display: flex; gap: 8px; padding: 10p",
+  ".cmdk { width: min(560px, -32px + 100vw); border-radius: var(--r-20); background: var(--glass-bg); backdrop-filter: var(",
+  ".call-dock { background: var(--glass-bg); backdrop-filter: var(--glass-blur); box-shadow: var(--e3),inset 0 1px #ffffff1",
+  ".cmdk { position: relative; background: var(--glass-bg); backdrop-filter: var(--glass-blur); box-shadow: var(--e3),inset"
+]

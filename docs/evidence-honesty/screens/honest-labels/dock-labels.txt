@@ -1,0 +1,22 @@
+=== LiveCallDock honest labels ===
+4:  IconHold,
+5:  IconKeypad,
+7:  IconTransfer,
+33:        className="call-dock__btn call-dock__btn--disabled"
+34:        aria-label="Hold — not available yet (needs carrier hold)"
+35:        aria-disabled="true"
+36:        title="Hold — not available yet (needs carrier hold)"
+37:        disabled
+39:        <IconHold />
+43:        className="call-dock__btn call-dock__btn--disabled"
+44:        aria-label="Transfer — not available yet"
+45:        aria-disabled="true"
+46:        title="Transfer — not available yet"
+47:        disabled
+49:        <IconTransfer />
+53:        className="call-dock__btn call-dock__btn--disabled"
+54:        aria-label="Keypad — DTMF not available yet"
+55:        aria-disabled="true"
+56:        title="Keypad — DTMF not available yet"
+57:        disabled
+59:        <IconKeypad />

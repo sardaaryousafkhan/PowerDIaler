@@ -1,0 +1,11 @@
+{
+  "durationMs": 2000,
+  "frameCount": 121,
+  "avgFps": 60.5,
+  "worstFrameMs": 18.7,
+  "worstFrameAtMs": 3197,
+  "framesOver16_6": 52,
+  "framesOver33": 0,
+  "spikeTimestamps": [],
+  "shellMs": 32
+}

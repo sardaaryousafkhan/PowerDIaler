@@ -1,0 +1,14 @@
+services:
+  zoom-phone-bridge:
+    build:
+      context: .
+      dockerfile: services/zoom-phone-bridge/Dockerfile
+    ports:
+      - "5999:5999"
+    env_file:
+      - services/zoom-phone-bridge/.env
+    volumes:
+      - bridge-data:/app/services/zoom-phone-bridge/bridge.db
+
+volumes:
+  bridge-data:

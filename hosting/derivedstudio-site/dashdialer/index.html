@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DashDialer — by Derived Studio</title>
+  <meta name="description" content="DashDialer runs on your computer. Buy a license from Derived Studio. Your website never carries dialer load." />
+  <style>
+    :root {
+      --brand: #5a48e8;
+      --coral: #ff6f61;
+      --ink: #16151f;
+      --muted: #5c5a6e;
+      --bg: #f5f6fc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(900px 420px at 10% -10%, rgba(143, 132, 255, 0.35), transparent 60%),
+        radial-gradient(700px 380px at 90% 0%, rgba(255, 111, 97, 0.22), transparent 55%),
+        var(--bg);
+      line-height: 1.5;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 48px 20px 80px; }
+    .brand { font-weight: 800; letter-spacing: -0.04em; font-size: 1.1rem; }
+    .brand span { color: var(--brand); }
+    h1 { font-size: clamp(2rem, 4vw, 2.8rem); letter-spacing: -0.04em; line-height: 1.1; margin: 28px 0 12px; }
+    .lede { font-size: 1.1rem; color: var(--muted); max-width: 36rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 40px; }
+    a.btn {
+      display: inline-block; padding: 12px 18px; border-radius: 12px; font-weight: 700;
+      text-decoration: none; color: #fff; background: linear-gradient(120deg, var(--brand), #8f84ff);
+      box-shadow: 0 10px 24px rgba(90, 72, 232, 0.28);
+    }
+    a.btn.secondary { background: #fff; color: var(--ink); border: 1px solid #d8dce8; box-shadow: none; }
+    .card {
+      background: #fff; border-radius: 20px; padding: 22px 24px;
+      box-shadow: 0 12px 32px rgba(22, 21, 40, 0.06); margin-bottom: 16px;
+    }
+    h2 { font-size: 1.05rem; margin: 0 0 8px; }
+    ol { margin: 0; padding-left: 1.2rem; color: var(--muted); }
+    li { margin: 6px 0; }
+    footer { margin-top: 40px; color: var(--muted); font-size: 0.85rem; }
+    code { font-family: ui-monospace, monospace; font-size: 0.9em; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">Derived Studio · <span>DashDialer</span></div>
+    <h1>Calls and texts on your computer — not on this website.</h1>
+    <p class="lede">
+      DashDialer installs on Mac or Windows. Campaigns and contact lists stay on the customer machine.
+      This site only sells access and checks the license key — so derivedstudio.com stays light.
+    </p>
+    <div class="actions">
+      <a class="btn" href="mailto:hello@derivedstudio.com?subject=DashDialer%20license">Buy / request a license</a>
+      <a class="btn secondary" href="#downloads">Downloads</a>
+      <a class="btn secondary" href="/license/admin/">License admin</a>
+    </div>
+
+    <div class="card" id="downloads">
+      <h2>Downloads</h2>
+      <p style="color:var(--muted);margin:0 0 12px">
+        Place your built installers in this folder (or a CDN) and update the links below.
+      </p>
+      <div class="actions" style="margin:0">
+        <a class="btn secondary" href="./downloads/DashDialer-mac.dmg">Mac (.dmg)</a>
+        <a class="btn secondary" href="./downloads/DashDialer-win.exe">Windows (.exe)</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>How it works</h2>
+      <ol>
+        <li>You pay Derived Studio (invoice, transfer, etc.).</li>
+        <li>We create a license key in the admin panel and send it to you.</li>
+        <li>Install DashDialer → open <strong>License</strong> → paste the key.</li>
+        <li>If a subscription ends, we revoke the key; the app locks paid features on the next check.</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>Help</h2>
+      <p style="color:var(--muted);margin:0">
+        See the customer guide in the product repo:
+        <code>docs/dashdialer-customer-help.md</code>
+        or email <a href="mailto:hello@derivedstudio.com">hello@derivedstudio.com</a>.
+      </p>
+    </div>
+
+    <footer>
+      © Derived Studio · <a href="https://derivedstudio.com/">derivedstudio.com</a>
+      · License verify path: <code>/license/api/verify.php</code>
+    </footer>
+  </div>
+</body>
+</html>

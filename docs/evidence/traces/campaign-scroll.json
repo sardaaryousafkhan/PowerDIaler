@@ -1,0 +1,12 @@
+{
+  "durationMs": 6000,
+  "frameCount": 362,
+  "avgFps": 60.3,
+  "worstFrameMs": 18.6,
+  "worstFrameAtMs": 37887,
+  "framesOver16_6": 187,
+  "framesOver33": 0,
+  "spikeTimestamps": [],
+  "domAfter": 26,
+  "itemCount": 520
+}

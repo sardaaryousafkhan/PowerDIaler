@@ -1,0 +1,10 @@
+{
+  "rewrites": [
+    { "source": "/license/api/verify.php", "destination": "/api/license/verify" },
+    { "source": "/license/admin", "destination": "/license/admin/index.html" },
+    { "source": "/license/admin/", "destination": "/license/admin/index.html" },
+    { "source": "/dashdialer", "destination": "/dashdialer/index.html" },
+    { "source": "/dashdialer/", "destination": "/dashdialer/index.html" },
+    { "source": "/((?!api/|assets/|projects/|dashdialer/|license/|campusdesk/|favicon|og-image|robots|sitemap|site.webmanifest|.*\\..*).*)", "destination": "/index.html" }
+  ]
+}

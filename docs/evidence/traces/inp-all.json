@@ -1,0 +1,25 @@
+{
+  "signInBusyPaintMs": null,
+  "signInToDashboardMs": 24,
+  "openCampaignMs": 10,
+  "startDialShellMs": 32,
+  "logOutcomeMs": 28,
+  "hangUpMs": 10,
+  "cmdkOpenMs": 26,
+  "cmdkSelectMs": 24,
+  "cachedNavMs": 40,
+  "uncachedNavMs": 43,
+  "muteMs": 34,
+  "targets": {
+    "signIn": 200,
+    "openCampaign": 200,
+    "startDial": 100,
+    "logOutcome": 100,
+    "hangUp": 100,
+    "cmdkOpen": 100,
+    "cmdkSelect": 200,
+    "cachedNav": 100,
+    "uncachedNav": 300,
+    "mute": 50
+  }
+}

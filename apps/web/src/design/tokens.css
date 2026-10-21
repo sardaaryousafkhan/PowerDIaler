@@ -1,0 +1,190 @@
+/**
+ * Obsidian & Rosé — design tokens.
+ * Dark is default. Light via html[data-theme="light"] or prefers-color-scheme.
+ * No raw hex in components — use these only.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces — Obsidian */
+  --canvas: #0a0a0c;
+  --surface-1: #101014;
+  --surface-2: #15151a;
+  --surface-3: #1b1b22;
+  --surface-hover: #202028;
+  --hairline: rgba(255, 255, 255, 0.07);
+  --hairline-strong: rgba(255, 255, 255, 0.12);
+
+  /* Text */
+  --text-hi: #f4f2ef;
+  --text-mid: #a6a3a0;
+  --text-low: #6e6b69;
+  --text-inverse: #0a0a0c;
+
+  /* Rosé Alloy — brand accent only */
+  --rose-100: #fbe8e6;
+  --rose-300: #f0bfc0;
+  --rose-500: #e08e96;
+  --rose-600: #c9737f;
+  --rose-glow: rgba(224, 142, 150, 0.22);
+  --rose-cta-text: #1a0e10;
+  --rose-gradient: linear-gradient(180deg, #e08e96 0%, #c9737f 100%);
+
+  /* Semantic — never reuse rose */
+  --live: #5fe3a1;
+  --live-dim: rgba(95, 227, 161, 0.12);
+  --warn: #f2b45c;
+  --danger: #f05f6a;
+  --info: #7fb2f0;
+  --idle: #6e6b69;
+
+  /* Radii */
+  --r-6: 6px;
+  --r-10: 10px;
+  --r-14: 14px;
+  --r-20: 20px;
+  --r-pill: 999px;
+
+  /* Elevation — top-left light source */
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  --e2: 0 8px 24px -8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 240, 230, 0.08);
+  --e3: 0 24px 64px -16px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 240, 230, 0.10);
+  --hairline-hover: rgba(255, 255, 255, 0.12);
+
+  /* Glass — cmdk + call dock only */
+  --glass-bg: rgba(12, 12, 16, 0.68);
+  --glass-blur: blur(32px) saturate(160%);
+
+  /* Ambient hero glows */
+  --glow-rose-hero: radial-gradient(480px 240px at 50% 0%, rgba(224, 142, 150, 0.10), transparent 70%);
+  --glow-jade-hero: radial-gradient(480px 240px at 50% 0%, rgba(95, 227, 161, 0.10), transparent 70%);
+  --glow-cta: 0 8px 32px -8px rgba(224, 142, 150, 0.35);
+  --seam-top: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+
+  /* Motion */
+  --dur-input: 90ms;
+  --dur-hover: 160ms;
+  --dur-std: 200ms;
+  --dur-overlay: 320ms;
+  --dur-deliberate: 480ms;
+  --dur-moment: 600ms;
+  --dur-draw: 800ms;
+  --ease-standard: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Type */
+  --font-ui: "Geist", "Instrument Sans", "Inter Tight", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --font-serif: "Instrument Serif", "Times New Roman", serif;
+
+  /* Compat aliases used by existing class names */
+  --bg: var(--canvas);
+  --panel: var(--surface-2);
+  --border: var(--hairline);
+  --text: var(--text-hi);
+  --muted: var(--text-mid);
+  --accent: var(--rose-500);
+  --danger-token: var(--danger);
+  --ok: var(--live);
+  --warning: var(--warn);
+  --field: var(--surface-2);
+  --glow: var(--rose-glow);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-void: 80px;
+
+  --rail-collapsed: 64px;
+  --rail-expanded: 240px;
+  --command-h: 56px;
+  --content-max: 1440px;
+  --content-gutter: 32px;
+  --context-w: 360px;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --canvas: #f7f5f2;
+  --surface-1: #ffffff;
+  --surface-2: #f1eee9;
+  --surface-3: #ebe7e1;
+  --surface-hover: #e5e0d8;
+  --hairline: rgba(20, 17, 15, 0.08);
+  --hairline-strong: rgba(20, 17, 15, 0.14);
+  --text-hi: #14110f;
+  --text-mid: #5c5854;
+  --text-low: #8a857f;
+  --text-inverse: #f7f5f2;
+  --rose-500: #c9737f;
+  --rose-600: #b45f6b;
+  --rose-glow: rgba(201, 115, 127, 0.22);
+  --rose-gradient: linear-gradient(180deg, #c9737f 0%, #b45f6b 100%);
+  --e1: 0 1px 2px rgba(20, 17, 15, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --e2: 0 8px 24px -8px rgba(20, 17, 15, 0.14), inset 0 1px 0 rgba(255, 240, 230, 0.9);
+  --e3: 0 24px 64px -16px rgba(20, 17, 15, 0.2), inset 0 1px 0 #fff;
+  --hairline-hover: rgba(20, 17, 15, 0.14);
+  --glass-bg: rgba(247, 245, 242, 0.72);
+  --glow-rose-hero: radial-gradient(480px 240px at 50% 0%, rgba(201, 115, 127, 0.10), transparent 70%);
+  --glow-jade-hero: radial-gradient(480px 240px at 50% 0%, rgba(95, 227, 161, 0.12), transparent 70%);
+  --glow-cta: 0 8px 32px -8px rgba(201, 115, 127, 0.35);
+  --seam-top: linear-gradient(90deg, transparent, rgba(20, 17, 15, 0.08), transparent);
+  --bg: var(--canvas);
+  --panel: var(--surface-1);
+  --border: var(--hairline);
+  --text: var(--text-hi);
+  --muted: var(--text-mid);
+  --accent: var(--rose-500);
+  --field: var(--surface-1);
+  --glow: var(--rose-glow);
+}
+
+@media (prefers-color-scheme: light) {
+  html:not([data-theme]) {
+    color-scheme: light;
+    --canvas: #f7f5f2;
+    --surface-1: #ffffff;
+    --surface-2: #f1eee9;
+    --surface-3: #ebe7e1;
+    --surface-hover: #e5e0d8;
+    --hairline: rgba(20, 17, 15, 0.08);
+    --hairline-strong: rgba(20, 17, 15, 0.14);
+    --hairline-hover: rgba(20, 17, 15, 0.14);
+    --text-hi: #14110f;
+    --text-mid: #5c5854;
+    --text-low: #8a857f;
+    --text-inverse: #f7f5f2;
+    --rose-500: #c9737f;
+    --rose-600: #b45f6b;
+    --rose-glow: rgba(201, 115, 127, 0.22);
+    --rose-gradient: linear-gradient(180deg, #c9737f 0%, #b45f6b 100%);
+    --e1: 0 1px 2px rgba(20, 17, 15, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    --e2: 0 8px 24px -8px rgba(20, 17, 15, 0.14), inset 0 1px 0 rgba(255, 240, 230, 0.9);
+    --e3: 0 24px 64px -16px rgba(20, 17, 15, 0.2), inset 0 1px 0 #fff;
+    --glass-bg: rgba(247, 245, 242, 0.72);
+    --glow-rose-hero: radial-gradient(480px 240px at 50% 0%, rgba(201, 115, 127, 0.10), transparent 70%);
+    --glow-jade-hero: radial-gradient(480px 240px at 50% 0%, rgba(95, 227, 161, 0.12), transparent 70%);
+    --glow-cta: 0 8px 32px -8px rgba(201, 115, 127, 0.35);
+    --seam-top: linear-gradient(90deg, transparent, rgba(20, 17, 15, 0.08), transparent);
+    --bg: var(--canvas);
+    --panel: var(--surface-1);
+    --border: var(--hairline);
+    --text: var(--text-hi);
+    --muted: var(--text-mid);
+    --accent: var(--rose-500);
+    --field: var(--surface-1);
+    --glow: var(--rose-glow);
+  }
+}
+
+/* Force dark as product default when system unset and no preference stored */
+html[data-theme="dark"] {
+  color-scheme: dark;
+}

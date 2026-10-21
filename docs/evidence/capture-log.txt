@@ -1,0 +1,132 @@
+{
+  "measuredAt": "2026-10-18T12:09:08.729Z",
+  "base": "http://127.0.0.1:4173",
+  "cold": {
+    "fcp": 210.7999999821186,
+    "dcl": 100.09999999403954,
+    "load": 100.2999999821186,
+    "msWall": 693
+  },
+  "signIn": {
+    "busyPaintMs": null,
+    "toDashboardMs": 24,
+    "shell": true
+  },
+  "dashboardIdle": {
+    "durationMs": 30000,
+    "frameCount": 1802,
+    "avgFps": 60.1,
+    "worstFrameMs": 18.8,
+    "worstFrameAtMs": 27321,
+    "framesOver16_6": 937,
+    "framesOver33": 0,
+    "spikeTimestamps": [],
+    "note": "rAF sample; health polls may appear in network",
+    "mainThreadRepeating": {
+      "healthishRequests": 3,
+      "note": "No React timer on dashboard; FPS sample uses rAF only for measurement"
+    }
+  },
+  "prefetch": {
+    "requestsBeforeClick": 1,
+    "requests": [
+      "CampaignList-dU4nSkJ6.js"
+    ],
+    "navMs": 410
+  },
+  "campaignDom": {
+    "itemCount": 520,
+    "domRows": 32,
+    "scrollHeight": 29120,
+    "clientHeight": 1118
+  },
+  "campaignScroll": {
+    "durationMs": 6000,
+    "frameCount": 362,
+    "avgFps": 60.3,
+    "worstFrameMs": 18.6,
+    "worstFrameAtMs": 37887,
+    "framesOver16_6": 187,
+    "framesOver33": 0,
+    "spikeTimestamps": [],
+    "domAfter": 26,
+    "itemCount": 520
+  },
+  "uncachedNavMs": 43,
+  "cachedNavMs": 40,
+  "openCampaignMs": 10,
+  "openCampaignHref": "http://127.0.0.1:4173/campaigns/evd602b32022c314fc09c78d3",
+  "startDialShellMs": 32,
+  "callConnect": {
+    "durationMs": 2000,
+    "frameCount": 121,
+    "avgFps": 60.5,
+    "worstFrameMs": 18.7,
+    "worstFrameAtMs": 3197,
+    "framesOver16_6": 52,
+    "framesOver33": 0,
+    "spikeTimestamps": [],
+    "shellMs": 32
+  },
+  "logOutcomeMs": 28,
+  "muteMs": 34,
+  "hangUpMs": 10,
+  "renderIsolation": {
+    "detailDelta5s": 2,
+    "timerDelta5s": 7,
+    "note": "detailDelta should stay near 0–2; timerDelta ~5 if 1Hz isolated"
+  },
+  "liveCall30s": {
+    "durationMs": 30000,
+    "frameCount": 1799,
+    "avgFps": 60,
+    "worstFrameMs": 50.1,
+    "worstFrameAtMs": 23567,
+    "framesOver16_6": 905,
+    "framesOver33": 1,
+    "spikeTimestamps": [
+      23567
+    ]
+  },
+  "cmdkOpenMs": 26,
+  "cmdkSelectMs": 24,
+  "fonts": [
+    {
+      "name": "Geist-Regular.woff2",
+      "start": 8,
+      "size": 300
+    },
+    {
+      "name": "Geist-Medium.woff2",
+      "start": 8,
+      "size": 300
+    },
+    {
+      "name": "Geist-SemiBold.woff2",
+      "start": 8,
+      "size": 300
+    },
+    {
+      "name": "GeistMono-Regular.woff2",
+      "start": 8,
+      "size": 300
+    },
+    {
+      "name": "GeistMono-Medium.woff2",
+      "start": 8,
+      "size": 300
+    },
+    {
+      "name": "InstrumentSerif-Regular.woff2",
+      "start": 8,
+      "size": 300
+    }
+  ],
+  "backdrop": [
+    ".call-dock { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%); display: flex; gap: 8px; padding: 10p",
+    ".cmdk { width: min(560px, -32px + 100vw); border-radius: var(--r-20); background: var(--glass-bg); backdrop-filter: var(",
+    ".call-dock { background: var(--glass-bg); backdrop-filter: var(--glass-blur); box-shadow: var(--e3),inset 0 1px #ffffff1",
+    ".cmdk { position: relative; background: var(--glass-bg); backdrop-filter: var(--glass-blur); box-shadow: var(--e3),inset"
+  ],
+  "productionUrl": "http://127.0.0.1:4173/dashboard"
+}

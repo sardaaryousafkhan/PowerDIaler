@@ -18,13 +18,5 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Build shared + generate Prisma
-        run: pnpm --filter @powerdialer/shared run build && pnpm --filter @powerdialer/api exec prisma generate
       - name: RBAC isolation suite
-        env:
-          RBAC_ENFORCE_ADMIN_PERMS: "true"
-          DEMO_MODE: "1"
-          DATABASE_URL: "file:./prisma/rbac-ci.db"
-        run: |
-          pnpm --filter @powerdialer/api exec prisma db push --skip-generate
-          pnpm run test:rbac
+        run: pnpm run test:rbac

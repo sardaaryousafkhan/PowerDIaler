@@ -131,19 +131,11 @@ model Membership {
   status         MembershipStatus @default(ACTIVE)
   /** JSON map of FunctionPermissionKey → boolean overrides for AGENT; owners/admins ignore. */
   permissions    String           @default("{}")
-  /**
-   * Admin who manages this AGENT. Null = Owner-direct team (Owner scope).
-   * Points at the manager's Membership.id (ORG_ADMIN), not userId.
-   */
-  managedByAdminId String?
-  managedByAdmin   Membership?  @relation("AdminTeam", fields: [managedByAdminId], references: [id], onDelete: SetNull)
-  managedAgents    Membership[] @relation("AdminTeam")
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
   @@unique([userId, organizationId])
   @@index([organizationId, status])
-  @@index([managedByAdminId])
 }
 
 model Invitation {
@@ -389,8 +381,6 @@ model CrmContact {
   lastName        String?
   company         String?
   ownerExternalId String?
-  /** Power Dialer user this contact is assigned to (team-scope writes). */
-  assignedUserId  String?
   metadata        Json?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -398,7 +388,6 @@ model CrmContact {
   @@index([organizationId, provider])
   @@index([email])
   @@index([phoneE164])
-  @@index([assignedUserId])
 }
 
 model CrmActivity {
@@ -410,8 +399,6 @@ model CrmActivity {
   contactEmail      String?
   campaignId        String?
   contactId         String?
-  /** Power Dialer user this activity belongs to (self/team scope). */
-  assignedUserId    String?
   type              String
   status            String?
   direction         String?
@@ -422,5 +409,4 @@ model CrmActivity {
 
   @@index([organizationId, provider, occurredAt])
   @@index([campaignId])
-  @@index([assignedUserId])
 }

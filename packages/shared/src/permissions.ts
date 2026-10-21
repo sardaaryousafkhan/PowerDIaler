@@ -11,8 +11,6 @@ export const FUNCTION_PERMISSION_KEYS = [
   "dnc_manage",
   "integrations_manage",
   "crm_manage",
-  /** Read team CRM + operational upsert/log (self/team). Write split deferred — see Batch 1 PR. */
-  "crm_view",
   "members_manage",
   "company_settings",
   "billing_view",
@@ -55,7 +53,6 @@ export function defaultPermissionsForOrgRole(role: OrgRolePublic): Record<Functi
     dnc_manage: false,
     integrations_manage: false,
     crm_manage: false,
-    crm_view: true,
     members_manage: false,
     company_settings: false,
     billing_view: false,

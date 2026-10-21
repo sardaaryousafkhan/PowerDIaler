@@ -356,14 +356,9 @@ function isConfiguredFromValues(fields: SetupFieldDef[], values: Record<string, 
 
 export async function integrationRoutes(app: FastifyInstance): Promise<void> {
   app.get("/integrations", async (req, reply) => {
-    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
     const { requireOrg } = await import("../lib/orgAccess.js");
-    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
     const { getOrgIntegrationPreference } = await import("../lib/orgPreferences.js");
-    // Flag off: preserve requireOrg (any member). Flag on: Owner-only integrations_manage.
-    const auth = isRbacEnforceAdminPerms()
-      ? await requirePermissionBatch1(req, reply, "integrations_manage", "GET /integrations")
-      : await requireOrg(req, reply);
+    const auth = await requireOrg(req, reply);
     if (!auth) return;
     let preference = await getOrgIntegrationPreference(auth.orgId);
 

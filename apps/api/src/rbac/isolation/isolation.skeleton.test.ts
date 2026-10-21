@@ -1,23 +1,10 @@
 /**
- * RBAC isolation suite skeleton + Batch 1 matrix integrity constants.
+ * RBAC isolation suite skeleton (baseline).
+ * Batch 1+ fills per-endpoint cases; this PR only wires the harness into CI.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { C7_ENDPOINT_IDS, C7_ISOLATION_MATRIX } from "./decisionTable.js";
-
-/** R2 — exact Admin keys for GET /org/settings (Test A). */
-export const ORG_SETTINGS_ADMIN_KEYS = [
-  "id",
-  "name",
-  "slug",
-  "settings",
-  "smsPerMinute",
-  "preferredIntegrationKey",
-] as const;
-
-export const ORG_SETTINGS_AGENT_KEYS = ["smsPerMinute", "preferredIntegrationKey"] as const;
-
-export const ORG_SETTINGS_OWNER_ONLY_KEYS = ["plan", "subscription"] as const;
 
 describe("C7 isolation suite skeleton", () => {
   it("tracks exactly 12 decision-table endpoints", () => {
@@ -39,20 +26,10 @@ describe("C7 isolation suite skeleton", () => {
       assert.ok([200, 403].includes(row.agentStatus), `${row.id} agentStatus`);
     }
   });
-
-  it("R2 field-split constants: Admin/Agent never include Owner-only keys", () => {
-    for (const k of ORG_SETTINGS_OWNER_ONLY_KEYS) {
-      assert.ok(!(ORG_SETTINGS_ADMIN_KEYS as readonly string[]).includes(k), `Admin must not include ${k}`);
-      assert.ok(!(ORG_SETTINGS_AGENT_KEYS as readonly string[]).includes(k), `Agent must not include ${k}`);
-    }
-    assert.ok(!(ORG_SETTINGS_AGENT_KEYS as readonly string[]).includes("settings"));
-    assert.ok(!(ORG_SETTINGS_AGENT_KEYS as readonly string[]).includes("name"));
-  });
 });
 
-describe("C7 remaining endpoints (Batches 2–3)", () => {
-  const pending = C7_ISOLATION_MATRIX.filter((r) => !["E03", "E04", "E09", "E10", "E11", "E12"].includes(r.id));
-  for (const row of pending) {
+describe("C7 isolation cases (pending Batch 1+)", () => {
+  for (const row of C7_ISOLATION_MATRIX) {
     it(`TODO ${row.id} ${row.method} ${row.path}`, { todo: true }, () => {});
   }
 });

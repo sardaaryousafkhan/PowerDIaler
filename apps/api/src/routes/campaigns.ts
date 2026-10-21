@@ -245,9 +245,37 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/campaigns", async (req, reply) => {
-    const auth = await requireOrg(req, reply);
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { teamUserIdsForActor } = await import("../rbac/teamScope.js");
+
+    // E08: flag off → baseline requireOrg + campaignWhereForUser.
+    // Flag on → campaign_view; Admin = startedByUserId self/team (coherent with E02); Agent = assigned.
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "campaign_view", "GET /campaigns")
+      : await requireOrg(req, reply);
     if (!auth) return;
-    const where = await campaignWhereForUser(auth);
+
+    let where: Record<string, unknown>;
+    if (!isRbacEnforceAdminPerms()) {
+      where = await campaignWhereForUser(auth);
+    } else if (auth.orgRole === "ORG_OWNER") {
+      where = { organizationId: auth.orgId };
+    } else if (auth.orgRole === "ORG_ADMIN") {
+      const teamIds = await teamUserIdsForActor(auth);
+      const starters = teamIds === "all" ? undefined : [auth.sub, ...teamIds];
+      where = {
+        organizationId: auth.orgId,
+        startedByUserId: starters ? { in: starters } : auth.sub,
+      };
+    } else {
+      // AGENT — assigned only
+      where = {
+        organizationId: auth.orgId,
+        assignments: { some: { userId: auth.sub } },
+      };
+    }
+
     const rows = await prisma.campaign.findMany({
       where,
       orderBy: { createdAt: "desc" },

@@ -3,6 +3,9 @@ import { z } from "zod";
 import { e164Schema } from "@powerdialer/shared";
 import { prisma } from "../db.js";
 import { requireOrg, requirePermission, writeAuditLog } from "../lib/orgAccess.js";
+import { isRbacEnforceAdminPerms } from "../rbac/enforceFlag.js";
+import { requirePermissionBatch1 } from "../rbac/permissionGate.js";
+import { teamUserIdsForActor } from "../rbac/teamScope.js";
 
 const addSchema = z.object({
   e164: e164Schema,
@@ -10,17 +13,46 @@ const addSchema = z.object({
 
 export async function dncRoutes(app: FastifyInstance): Promise<void> {
   app.get("/dnc", async (req, reply) => {
-    const auth = await requireOrg(req, reply);
+    // E07: flag off → any org member (baseline); flag on → dnc_manage + team/Owner-shared filter.
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "dnc_manage", "GET /dnc")
+      : await requireOrg(req, reply);
     if (!auth) return;
+
+    let where: { organizationId: string; OR?: Array<Record<string, unknown>> } = {
+      organizationId: auth.orgId,
+    };
+
+    if (isRbacEnforceAdminPerms() && auth.orgRole === "ORG_ADMIN") {
+      const teamIds = await teamUserIdsForActor(auth);
+      const ownerMembership = await prisma.membership.findFirst({
+        where: { organizationId: auth.orgId, orgRole: "ORG_OWNER", status: "ACTIVE" },
+        select: { userId: true },
+      });
+      // Owner-shared = createdByUserId is the org Owner (company-wide DNC).
+      // Null-legacy (pre-migration) = Owner-only — Admins must not see NULL rows (no cross-team leak).
+      const allowedCreators = [
+        auth.sub,
+        ...(teamIds === "all" ? [] : teamIds),
+        ...(ownerMembership ? [ownerMembership.userId] : []),
+      ];
+      where = {
+        organizationId: auth.orgId,
+        createdByUserId: { in: allowedCreators },
+      };
+    }
+
     return prisma.dncEntry.findMany({
-      where: { organizationId: auth.orgId },
+      where,
       orderBy: { createdAt: "desc" },
       take: 2000,
     });
   });
 
   app.post("/dnc", async (req, reply) => {
-    const auth = await requirePermission(req, reply, "dnc_manage");
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "dnc_manage", "POST /dnc")
+      : await requirePermission(req, reply, "dnc_manage");
     if (!auth) return;
     const parsed = addSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -32,7 +64,7 @@ export async function dncRoutes(app: FastifyInstance): Promise<void> {
       where: {
         organizationId_e164: { organizationId: auth.orgId, e164: body.e164 },
       },
-      create: { organizationId: auth.orgId, e164: body.e164 },
+      create: { organizationId: auth.orgId, e164: body.e164, createdByUserId: auth.sub },
       update: {},
     });
     await writeAuditLog({

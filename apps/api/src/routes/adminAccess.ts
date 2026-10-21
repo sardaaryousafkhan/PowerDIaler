@@ -292,6 +292,7 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
   app.get("/org/settings", async (req, reply) => {
     const auth = await requireOrg(req, reply);
     if (!auth) return;
+    const { shapeOrgSettingsForRole } = await import("../rbac/orgSettingsShape.js");
     const org = await prisma.organization.findUniqueOrThrow({
       where: { id: auth.orgId },
       include: {
@@ -306,7 +307,7 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
     } catch {
       settings = {};
     }
-    return {
+    const full = {
       id: org.id,
       name: org.name,
       slug: org.slug,
@@ -320,6 +321,7 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
         ? { status: org.subscription.status, currentPeriodEnd: org.subscription.currentPeriodEnd }
         : null,
     };
+    return shapeOrgSettingsForRole(full, auth.orgRole);
   });
 
   app.patch("/org/settings", async (req, reply) => {

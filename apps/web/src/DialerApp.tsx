@@ -29,6 +29,7 @@ import {
 import { LoginPage } from "./pages/LoginPage.js";
 import { RegisterPage } from "./pages/RegisterPage.js";
 import { LicenseActivatePage } from "./pages/LicenseActivatePage.js";
+import { RoleFilteredMenu } from "./nav/RoleFilteredMenu.js";
 
 /** Lazy primary routes — shrink main chunk (was ~780KB with eager Dashboard/List) */
 const DashboardPage = lazy(() =>
@@ -434,6 +435,7 @@ export function DialerApp(): ReactElement {
                     </button>
                     <ToastHistoryButton />
                     <ThemeToggle />
+                    <RoleFilteredMenu />
                     <a
                       className="command-bar__icon-btn"
                       href={HELP_URL}

@@ -1,6 +1,6 @@
 # Batch 4 — Flag flip plan
 
-**Status:** Plan merged (PR #6). **Prep-0 unblocked** after G1–G4 below. Do **not** flip `RBAC_ENFORCE_ADMIN_PERMS` until go/no-go is green.
+**Status:** Prep-0 through prep-2 + menus + flip docs shipped (see **Shipped** below). Prod flag remains off until checklist in `docs/rbac-flip-checklist.md` is fully checked.
 
 **G1 measurable condition:** Bucket A is empty **AND** Bucket B is verified with expected outcomes (staging-smoke green).
 
@@ -190,9 +190,31 @@ Calendar estimates in prior revision are ceilings for human planning, not a thro
 
 ---
 
+## Shipped
+
+| Date | Item | Notes |
+|------|------|--------|
+| 2026-10-21 | Prep-0 (PR #8) | PATCH `/admin/access/users/:id` only; DELETE deferred |
+| 2026-10-22 | Prep-0b + Prep-1 | C3 demote + first 7 Bucket A endpoints |
+| 2026-10-22 | Prep-2 | Remaining Bucket A + Bucket B explicit gates; `rbac-staging-smoke.yml` |
+| 2026-10-22 | Bypass removal | Separate single-file commit (see orgAccess); rehearsal doc |
+| 2026-10-22 | Menus | `rbacNav` flag; single config array; role filter at render |
+| 2026-10-22 | Flip prep | Checklist, admin comms, post-flip script, backlog |
+
+**Metrics:** `pnpm test:rbac` ≥ 85 pass. Bucket A → empty. Bucket B → empty (explicit guard + test). Bypass removed in dedicated commit.
+
+**Surprises:** `enforceFunctionAccess` had no separate short-circuit (delegates to `requirePermission`). Media fetch moved to token-only; legacy HMAC tokens still accepted.
+
+**Follow-up:** see `docs/rbac-backlog.md` (E08, D5 long-term, recordings_view_self, hotkeys).
+
+**Dormancy:** Flag off = baseline behavior; flag on = re-keyed gates fire. Prod flag remains off until Batch 4 flip checklist is complete.
+
+---
+
 ## Revision history
 
 | Date | Change |
 |------|--------|
 | 2026-10-21 | Initial plan; SF1–SF5 + D1–D8; 61-route denominator. |
 | 2026-10-21 | **G1–G4 + Admin comms:** C=20 fully enumerated with reasons; prior ~46 **retracted**; 86 vs 61 arithmetic stated; **G6** rollback rehearsal gate (no TBD date); D4 coaching read = **(b)** `GET …/attempts`; Admin comms section; prep-0 unblocked. |
+| 2026-10-22 | **Shipped** section: prep-0b/1/2, smoke workflow, menus, flip docs, backlog. |

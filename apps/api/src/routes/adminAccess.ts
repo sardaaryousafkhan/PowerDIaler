@@ -259,11 +259,25 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
 
   /** Remove a member from the company (keeps the user account; disables membership). */
   app.delete("/org/members/:id", async (req, reply) => {
-    // Prep-0b: C3 reassignment + members_change_role re-key (not in prep-0 — orphan risk).
-    const auth = await requirePermission(req, reply, "members_manage");
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { denyWithAudit, requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    // Prep-0b: members_change_role + C3 reassignment when demoting/removing an Admin with a team.
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "members_change_role", "DELETE /org/members/:id")
+      : await requirePermission(req, reply, "members_manage");
     if (!auth) return;
     const id = (req.params as { id: string }).id;
-    if (id === auth.sub) return reply.code(400).send({ error: "You cannot remove yourself." });
+    if (id === auth.sub) {
+      if (isRbacEnforceAdminPerms()) {
+        await denyWithAudit(reply, auth, {
+          path: "DELETE /org/members/:id",
+          requiredPermission: "members_change_role",
+          reason: "self_demote_blocked",
+        });
+        return;
+      }
+      return reply.code(400).send({ error: "You cannot remove yourself." });
+    }
     const membership = await prisma.membership.findUnique({
       where: { userId_organizationId: { userId: id, organizationId: auth.orgId } },
     });
@@ -271,6 +285,134 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
     if (membership.orgRole === "ORG_OWNER" && auth.orgRole !== "ORG_OWNER" && !isPlatformAdmin(auth)) {
       return reply.code(403).send({ error: "Only an org owner can remove another owner." });
     }
+
+    const demoteBody = z
+      .object({
+        reassignments: z
+          .array(
+            z.object({
+              userId: z.string().min(1),
+              /** null = Owner-direct; otherwise target Admin's userId */
+              newManagerId: z.string().min(1).nullable(),
+            }),
+          )
+          .optional(),
+      })
+      .safeParse(req.body ?? {});
+    const reassignments = demoteBody.success ? demoteBody.data.reassignments ?? [] : [];
+
+    const teamMembers = await prisma.membership.findMany({
+      where: {
+        organizationId: auth.orgId,
+        status: "ACTIVE",
+        managedByAdminId: membership.id,
+      },
+      select: { id: true, userId: true },
+    });
+    const previousTeamSize = teamMembers.length;
+    const isAdminTarget = membership.orgRole === "ORG_ADMIN";
+
+    if (isRbacEnforceAdminPerms() && isAdminTarget && previousTeamSize > 0) {
+      if (reassignments.length === 0) {
+        return reply.code(400).send({
+          error:
+            "Demotion requires reassignment. Choose another Admin or accept reassignment to yourself.",
+        });
+      }
+      const teamUserIds = new Set(teamMembers.map((t) => t.userId));
+      const covered = new Set(reassignments.map((r) => r.userId));
+      if (covered.size !== teamUserIds.size || [...teamUserIds].some((u) => !covered.has(u))) {
+        return reply.code(400).send({
+          error:
+            "Demotion requires reassignment. Choose another Admin or accept reassignment to yourself.",
+        });
+      }
+      // Resolve newManagerId (userId) → membershipId; null = Owner-direct
+      const resolved: Array<{ userId: string; previousManagerId: string; newManagerId: string | null; newMembershipId: string | null }> = [];
+      for (const r of reassignments) {
+        if (r.newManagerId === null) {
+          resolved.push({
+            userId: r.userId,
+            previousManagerId: id,
+            newManagerId: null,
+            newMembershipId: null,
+          });
+          continue;
+        }
+        if (r.newManagerId === id) {
+          return reply.code(400).send({ error: "Cannot reassign to the Admin being removed." });
+        }
+        const targetMgr = await prisma.membership.findFirst({
+          where: {
+            organizationId: auth.orgId,
+            userId: r.newManagerId,
+            orgRole: "ORG_ADMIN",
+            status: "ACTIVE",
+          },
+          select: { id: true, userId: true },
+        });
+        if (!targetMgr) {
+          return reply.code(400).send({
+            error:
+              "Demotion requires reassignment. Choose another Admin or accept reassignment to yourself.",
+          });
+        }
+        resolved.push({
+          userId: r.userId,
+          previousManagerId: id,
+          newManagerId: targetMgr.userId,
+          newMembershipId: targetMgr.id,
+        });
+      }
+
+      try {
+        await prisma.$transaction(async (tx) => {
+          for (const r of resolved) {
+            await tx.membership.updateMany({
+              where: { organizationId: auth.orgId, userId: r.userId, status: "ACTIVE" },
+              data: { managedByAdminId: r.newMembershipId },
+            });
+          }
+          await tx.campaign.updateMany({
+            where: { organizationId: auth.orgId, startedByUserId: id },
+            data: { startedByUserId: auth.sub },
+          });
+          await tx.membership.update({
+            where: { id: membership.id },
+            data: { status: "DISABLED", orgRole: "AGENT" },
+          });
+          await tx.campaignAssignment.deleteMany({
+            where: { userId: id, campaign: { organizationId: auth.orgId } },
+          });
+        });
+      } catch {
+        return reply.code(500).send({ error: "Demotion failed; no changes applied." });
+      }
+
+      await writeAuditLog({
+        organizationId: auth.orgId,
+        actorUserId: auth.sub,
+        action: "members.admin_demoted",
+        entityType: "Membership",
+        entityId: membership.id,
+        meta: {
+          event: "members.admin_demoted",
+          actorId: auth.sub,
+          demotedAdminId: id,
+          reassignments: resolved.map((r) => ({
+            userId: r.userId,
+            previousManagerId: r.previousManagerId,
+            newManagerId: r.newManagerId,
+          })),
+          previousTeamSize,
+          newTeamSize: 0,
+          timestamp: new Date().toISOString(),
+        },
+      });
+      return { ok: true, demoted: true, previousTeamSize, newTeamSize: 0 };
+    }
+
+    // Non-Admin target, or Admin with empty team / flag off
     await prisma.$transaction([
       prisma.membership.update({ where: { id: membership.id }, data: { status: "DISABLED" } }),
       prisma.campaignAssignment.deleteMany({
@@ -387,7 +529,12 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.patch("/org/settings", async (req, reply) => {
-    const auth = await requirePermission(req, reply, "company_settings");
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    // Bucket B / prep-2: company_settings Owner-only when enforce on (Admin 403).
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "company_settings", "PATCH /org/settings")
+      : await requirePermission(req, reply, "company_settings");
     if (!auth) return;
     const body = z
       .object({
@@ -435,7 +582,12 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/org/billing", async (req, reply) => {
-    const auth = await requirePermission(req, reply, "billing_view");
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    // Bucket B / prep-2: billing_view Owner-only when enforce on.
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "billing_view", "GET /org/billing")
+      : await requirePermission(req, reply, "billing_view");
     if (!auth) return;
     const sub = await prisma.subscription.findUnique({
       where: { organizationId: auth.orgId },
@@ -461,15 +613,47 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/org/audit-logs", async (req, reply) => {
-    const auth = await requirePermission(req, reply, "members_manage");
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { teamUserIdsForActor } = await import("../rbac/teamScope.js");
+    // D7: audit_view + actor-OR-target team filter when enforce on.
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "audit_view", "GET /org/audit-logs")
+      : await requirePermission(req, reply, "members_manage");
     if (!auth) return;
-    const rows = await prisma.auditLog.findMany({
+
+    let rows = await prisma.auditLog.findMany({
       where: { organizationId: auth.orgId },
       orderBy: { createdAt: "desc" },
-      take: 200,
+      take: 500,
     });
+
+    if (isRbacEnforceAdminPerms() && auth.orgRole === "ORG_ADMIN") {
+      const teamIds = await teamUserIdsForActor(
+        auth as Parameters<typeof teamUserIdsForActor>[0],
+      );
+      const allowed = new Set(
+        Array.isArray(teamIds) ? [...teamIds, auth.sub] : [],
+      );
+      rows = rows.filter((r) => {
+        if (r.actorUserId && allowed.has(r.actorUserId)) return true;
+        try {
+          const meta = JSON.parse(r.meta) as {
+            targetUserId?: string;
+            userId?: string;
+            demotedAdminId?: string;
+          };
+          const target = meta.targetUserId ?? meta.userId ?? meta.demotedAdminId;
+          if (target && allowed.has(target)) return true;
+        } catch {
+          /* ignore */
+        }
+        return false;
+      });
+    }
+
     return {
-      logs: rows.map((r) => ({
+      logs: rows.slice(0, 200).map((r) => ({
         ...r,
         meta: (() => {
           try {
@@ -523,9 +707,27 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.put("/campaigns/:id/assignments", async (req, reply) => {
-    const auth = await requirePermission(req, reply, "members_manage");
-    if (!auth) return;
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
     const id = (req.params as { id: string }).id;
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "members_manage", "PUT /campaigns/:id/assignments")
+      : await requirePermission(req, reply, "members_manage");
+    if (!auth) return;
+    if (isRbacEnforceAdminPerms()) {
+      if (
+        !(await loadCampaignIfAccessible(
+          reply,
+          auth as Parameters<typeof loadCampaignIfAccessible>[1],
+          id,
+          "PUT /campaigns/:id/assignments",
+          "members_manage",
+        ))
+      ) {
+        return;
+      }
+    }
     const body = assignSchema.parse(req.body);
     const campaign = await prisma.campaign.findFirst({
       where: { id, organizationId: auth.orgId },

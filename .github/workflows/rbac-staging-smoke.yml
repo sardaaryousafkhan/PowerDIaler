@@ -42,16 +42,8 @@ jobs:
           pnpm exec prisma db push --skip-generate
           # Full isolation suite is the fixture+assertion harness (Owner/Admin A/B/Agent,
           # campaigns startedBy A+B, DNC owner/A/B, Bucket A/B 200/403 + audit).
-          pnpm run test:rbac
-      - name: Confirm ≥85 isolation assertions
-        working-directory: apps/api
-        env:
-          RBAC_ENFORCE_ADMIN_PERMS: "true"
-          DEMO_MODE: "1"
-          DATABASE_URL: "file:./prisma/rbac-staging-smoke.db"
-        run: |
           OUT=$(pnpm run test:rbac 2>&1 | tee /tmp/rbac-smoke.txt)
-          echo "$OUT" | tail -20
+          echo "$OUT" | tail -30
           PASS=$(echo "$OUT" | sed -n 's/^# pass //p' | tail -1)
           test -n "$PASS"
           test "$PASS" -ge 85

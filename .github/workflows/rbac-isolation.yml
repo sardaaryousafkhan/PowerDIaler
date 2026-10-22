@@ -21,10 +21,11 @@ jobs:
       - name: Build shared + generate Prisma
         run: pnpm --filter @powerdialer/shared run build && pnpm --filter @powerdialer/api exec prisma generate
       - name: RBAC isolation suite
+        working-directory: apps/api
         env:
           RBAC_ENFORCE_ADMIN_PERMS: "true"
           DEMO_MODE: "1"
           DATABASE_URL: "file:./prisma/rbac-ci.db"
         run: |
-          pnpm --filter @powerdialer/api exec prisma db push --skip-generate
+          pnpm exec prisma db push --skip-generate
           pnpm run test:rbac

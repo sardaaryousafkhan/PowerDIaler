@@ -89,7 +89,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       can(permission) {
         // Staging/prod flip UI: when rbacNav is on, match backend matrix (not legacy Admin=all).
         if (isRbacNavEnabled() && organization?.orgRole) {
-          return clientMatrixAllows(organization.orgRole, permission);
+          return clientMatrixAllows(
+            organization.orgRole as "ORG_OWNER" | "ORG_ADMIN" | "AGENT",
+            permission,
+          );
         }
         // Legacy (flag-off / rbacNav off): Admin/Owner UI bypass — matches pre-Batch-4 backend.
         if (user?.role === "admin" || user?.role === "owner") return true;

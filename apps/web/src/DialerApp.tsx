@@ -29,7 +29,9 @@ import {
 import { LoginPage } from "./pages/LoginPage.js";
 import { RegisterPage } from "./pages/RegisterPage.js";
 import { LicenseActivatePage } from "./pages/LicenseActivatePage.js";
-import { RoleFilteredMenu } from "./nav/RoleFilteredMenu.js";
+import { ApiForbiddenListener } from "./nav/ApiForbiddenListener.js";
+import { RightSideNav } from "./nav/RightSideNav.js";
+import { RouteAccessGuard } from "./nav/RouteAccessGuard.js";
 
 /** Lazy primary routes — shrink main chunk (was ~780KB with eager Dashboard/List) */
 const DashboardPage = lazy(() =>
@@ -435,7 +437,6 @@ export function DialerApp(): ReactElement {
                     </button>
                     <ToastHistoryButton />
                     <ThemeToggle />
-                    <RoleFilteredMenu />
                     <a
                       className="command-bar__icon-btn"
                       href={HELP_URL}
@@ -450,11 +451,15 @@ export function DialerApp(): ReactElement {
                   {!isPublicAuthRoute ? <LicenseBanner /> : null}
                   {/* CSS page-enter only — no Framer opacity/y on every route (INP cost) */}
                   <div key={location.pathname} className="route-shell">
-                    <RoutedContent />
+                    <RouteAccessGuard>
+                      <RoutedContent />
+                    </RouteAccessGuard>
                   </div>
                 </main>
               </div>
+              {!isPublicAuthRoute ? <RightSideNav /> : null}
             </div>
+            <ApiForbiddenListener />
             <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
           </div>
         </ToastProvider>

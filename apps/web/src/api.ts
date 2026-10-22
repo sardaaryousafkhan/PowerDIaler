@@ -32,6 +32,14 @@ async function handle<T>(res: Promise<Response> | Response): Promise<T> {
       (parsed && typeof parsed.details === "string" && parsed.details) ||
       text ||
       r.statusText;
+    if (r.status === 403 && typeof window !== "undefined") {
+      // Friendly toast via ApiForbiddenListener — never surface a stack trace.
+      window.dispatchEvent(
+        new CustomEvent("dashdialer:api-forbidden", {
+          detail: { message: String(msg || ""), path: r.url },
+        }),
+      );
+    }
     throw new Error(msg || `Request failed (${r.status})`);
   }
   if (!text.length) return {} as T;

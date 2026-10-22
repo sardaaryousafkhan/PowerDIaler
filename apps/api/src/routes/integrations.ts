@@ -386,11 +386,19 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.put("/integrations/preference", async (req, reply) => {
-    if (!(await enforceFunctionAccess(req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null }, reply, "integrations_manage"))) {
-      return;
-    }
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
     const { requireOrg, writeAuditLog } = await import("../lib/orgAccess.js");
-    const auth = await requireOrg(req, reply);
+    // Bucket B / prep-2: integrations_manage Owner-only when enforce on.
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "integrations_manage", "PUT /integrations/preference")
+      : (await enforceFunctionAccess(
+            req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
+            reply,
+            "integrations_manage",
+          ))
+        ? await requireOrg(req, reply)
+        : null;
     if (!auth) return;
     const body = integrationPreferencePatchSchema.parse(req.body);
     const existing = await prisma.integrationPreference.findUnique({
@@ -575,12 +583,25 @@ export async function integrationRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.put("/integrations/setup/:provider", async (req, reply) => {
-    if (!(await enforceFunctionAccess(req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null }, reply, "integrations_manage"))) {
-      return;
-    }
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
     const { requireOrg, writeAuditLog } = await import("../lib/orgAccess.js");
     const { setOrgSecret } = await import("../lib/secrets.js");
-    const auth = await requireOrg(req, reply);
+    // Bucket B / prep-2: integrations_manage Owner-only when enforce on.
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(
+          req,
+          reply,
+          "integrations_manage",
+          "PUT /integrations/setup/:provider",
+        )
+      : (await enforceFunctionAccess(
+            req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
+            reply,
+            "integrations_manage",
+          ))
+        ? await requireOrg(req, reply)
+        : null;
     if (!auth) return;
     const provider = integrationProviderIdSchema.parse((req.params as { provider?: string }).provider);
     const fields = setupFieldsForProvider(provider);

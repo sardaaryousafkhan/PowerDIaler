@@ -1,0 +1,57 @@
+# SF5 / G6 flip gate: staging-shaped RBAC smoke against every Bucket A/B endpoint.
+name: RBAC staging smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/api/src/rbac/**"
+      - "apps/api/src/lib/orgAccess.ts"
+      - "apps/api/src/routes/**"
+      - ".github/workflows/rbac-staging-smoke.yml"
+  push:
+    branches: [main, master]
+    paths:
+      - "apps/api/src/rbac/**"
+      - "apps/api/src/lib/orgAccess.ts"
+      - "apps/api/src/routes/**"
+      - ".github/workflows/rbac-staging-smoke.yml"
+
+jobs:
+  staging-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared + Prisma
+        run: pnpm --filter @powerdialer/shared run build && pnpm --filter @powerdialer/api exec prisma generate
+      - name: Seed fixtures + smoke (enforce on)
+        env:
+          RBAC_ENFORCE_ADMIN_PERMS: "true"
+          DEMO_MODE: "1"
+          DATABASE_URL: "file:./prisma/rbac-staging-smoke.db"
+        working-directory: apps/api
+        run: |
+          pnpm exec prisma db push --skip-generate
+          # Full isolation suite is the fixture+assertion harness (Owner/Admin A/B/Agent,
+          # campaigns startedBy A+B, DNC owner/A/B, Bucket A/B 200/403 + audit).
+          pnpm run test:rbac
+      - name: Confirm ≥85 isolation assertions
+        working-directory: apps/api
+        env:
+          RBAC_ENFORCE_ADMIN_PERMS: "true"
+          DEMO_MODE: "1"
+          DATABASE_URL: "file:./prisma/rbac-staging-smoke.db"
+        run: |
+          OUT=$(pnpm run test:rbac 2>&1 | tee /tmp/rbac-smoke.txt)
+          echo "$OUT" | tail -20
+          PASS=$(echo "$OUT" | sed -n 's/^# pass //p' | tail -1)
+          test -n "$PASS"
+          test "$PASS" -ge 85

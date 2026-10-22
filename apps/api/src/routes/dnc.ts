@@ -4,7 +4,7 @@ import { e164Schema } from "@powerdialer/shared";
 import { prisma } from "../db.js";
 import { requireOrg, requirePermission, writeAuditLog } from "../lib/orgAccess.js";
 import { isRbacEnforceAdminPerms } from "../rbac/enforceFlag.js";
-import { requirePermissionBatch1 } from "../rbac/permissionGate.js";
+import { denyWithAudit, requirePermissionBatch1 } from "../rbac/permissionGate.js";
 import { teamUserIdsForActor } from "../rbac/teamScope.js";
 
 const addSchema = z.object({
@@ -13,13 +13,12 @@ const addSchema = z.object({
 
 export async function dncRoutes(app: FastifyInstance): Promise<void> {
   app.get("/dnc", async (req, reply) => {
-    // E07: flag off → any org member (baseline); flag on → dnc_manage + team/Owner-shared filter.
     const auth = isRbacEnforceAdminPerms()
       ? await requirePermissionBatch1(req, reply, "dnc_manage", "GET /dnc")
       : await requireOrg(req, reply);
     if (!auth) return;
 
-    let where: { organizationId: string; OR?: Array<Record<string, unknown>> } = {
+    let where: { organizationId: string; createdByUserId?: { in: string[] } } = {
       organizationId: auth.orgId,
     };
 
@@ -29,8 +28,6 @@ export async function dncRoutes(app: FastifyInstance): Promise<void> {
         where: { organizationId: auth.orgId, orgRole: "ORG_OWNER", status: "ACTIVE" },
         select: { userId: true },
       });
-      // Owner-shared = createdByUserId is the org Owner (company-wide DNC).
-      // Null-legacy (pre-migration) = Owner-only — Admins must not see NULL rows (no cross-team leak).
       const allowedCreators = [
         auth.sub,
         ...(teamIds === "all" ? [] : teamIds),
@@ -79,11 +76,44 @@ export async function dncRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.delete("/dnc/:e164", async (req, reply) => {
-    const auth = await requirePermission(req, reply, "dnc_manage");
+    const auth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "dnc_delete", "DELETE /dnc/:e164")
+      : await requirePermission(req, reply, "dnc_manage");
     if (!auth) return;
     const e164 = decodeURIComponent((req.params as { e164: string }).e164);
     const parsed = e164Schema.safeParse(e164);
     if (!parsed.success) return reply.code(400).send({ error: "Invalid E.164" });
+
+    const existing = await prisma.dncEntry.findFirst({
+      where: { organizationId: auth.orgId, e164: parsed.data },
+    });
+    if (!existing) return reply.code(404).send({ error: "Not found" });
+
+    if (isRbacEnforceAdminPerms() && auth.orgRole === "ORG_ADMIN") {
+      const ownerMembership = await prisma.membership.findFirst({
+        where: { organizationId: auth.orgId, orgRole: "ORG_OWNER", status: "ACTIVE" },
+        select: { userId: true },
+      });
+      if (existing.createdByUserId === ownerMembership?.userId) {
+        await denyWithAudit(reply, auth, {
+          path: "DELETE /dnc/:e164",
+          requiredPermission: "dnc_delete",
+          reason: "owner_dnc_delete_protected",
+        });
+        return;
+      }
+      const teamIds = await teamUserIdsForActor(auth);
+      const allowed = [auth.sub, ...(teamIds === "all" ? [] : teamIds)];
+      if (!existing.createdByUserId || !allowed.includes(existing.createdByUserId)) {
+        await denyWithAudit(reply, auth, {
+          path: "DELETE /dnc/:e164",
+          requiredPermission: "dnc_delete",
+          reason: "cross_team_dnc",
+        });
+        return;
+      }
+    }
+
     await prisma.dncEntry.deleteMany({
       where: { organizationId: auth.orgId, e164: parsed.data },
     });

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:nav": "tsx --test src/nav/rbacMenuConfig.test.ts"
   },
   "dependencies": {
     "@powerdialer/shared": "workspace:*",

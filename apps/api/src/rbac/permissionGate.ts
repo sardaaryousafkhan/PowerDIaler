@@ -24,11 +24,23 @@ function enforceMatrixAllows(orgRole: OrgRolePublic, permission: FunctionPermiss
     if (permission === "company_settings") return false;
     if (permission === "members_invite") return false;
     if (permission === "members_change_role") return false;
+    if (permission === "audit_view") return true;
     if (permission === "crm_view") return true;
     if (permission === "members_manage") return true;
     if (permission === "dnc_manage") return true;
+    if (permission === "dnc_delete") return true; // team-scoped at route
     if (permission === "campaign_view") return true;
-    return true; // other operational keys until later batches narrow further
+    if (permission === "campaign_create") return true;
+    if (permission === "campaign_delete") return true;
+    if (permission === "campaign_start") return true;
+    if (permission === "campaign_pause") return true;
+    if (permission === "campaign_resume") return true;
+    if (permission === "contact_import") return true;
+    if (permission === "sms_broadcast") return true;
+    if (permission === "campaign_notes") return true;
+    // D4: disposition/skip write is Agent-only
+    if (permission === "campaign_dial") return false;
+    return true;
   }
   // AGENT
   if (permission === "crm_view") return true;

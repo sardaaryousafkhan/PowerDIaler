@@ -172,7 +172,20 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   await app.register(multipart, { limits: { fileSize: 100 * 1024 * 1024 } });
 
   app.post("/campaigns", async (req, reply) => {
-    if (!(await enforceFunctionAccess(req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null }, reply, "campaign_create"))) {
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const createAuth = isRbacEnforceAdminPerms()
+      ? await requirePermissionBatch1(req, reply, "campaign_create", "POST /campaigns")
+      : null;
+    if (isRbacEnforceAdminPerms()) {
+      if (!createAuth) return;
+    } else if (
+      !(await enforceFunctionAccess(
+        req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
+        reply,
+        "campaign_create",
+      ))
+    ) {
       return;
     }
     // Normalize caller ID before schema validation so (202) 555-0101 works.
@@ -212,7 +225,9 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     const voiceMessage = body.kind === "DIAL" ? body.voiceMessage : "";
     const smsTemplate = body.kind === "DIAL" ? body.smsTemplate : body.smsTemplate;
     const voicemailDropEnabled = body.kind === "DIAL" ? Boolean(body.voicemailDropEnabled) : false;
-    const auth = await requireOrg(req, reply);
+    const auth =
+      createAuth ??
+      (await requireOrg(req, reply));
     if (!auth) return;
     const campaign = await prisma.campaign.create({
       data: {
@@ -232,6 +247,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         consentNotes: body.consentNotes,
         consentAttestedAt: new Date(),
         status: "DRAFT",
+        startedByUserId: auth.sub,
       },
     });
     await writeAuditLog({
@@ -286,8 +302,18 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/campaigns/:id", async (req, reply) => {
     const id = (req.params as { id: string }).id;
-    const auth = await requireCampaignAccess(req, reply, id);
-    if (!auth) return;
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
+    let auth;
+    if (isRbacEnforceAdminPerms()) {
+      auth = await requirePermissionBatch1(req, reply, "campaign_view", "GET /campaigns/:id");
+      if (!auth) return;
+      if (!(await loadCampaignIfAccessible(reply, auth, id, "GET /campaigns/:id", "campaign_view"))) return;
+    } else {
+      auth = await requireCampaignAccess(req, reply, id);
+      if (!auth) return;
+    }
     const c = await prisma.campaign.findFirst({
       where: { id, organizationId: auth.orgId },
       select: {
@@ -325,10 +351,45 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  /**
+   * D5(a): mint short-TTL signed media URLs (authenticated + campaign_view + ownership).
+   * Fetch endpoints below require only a valid token (no permission check).
+   * Pre-existing URL-leak (whoever has URL can fetch) addressed by moving to token pattern
+   * in this PR. Old unsigned URLs remain valid until callers stop issuing them.
+   */
+  app.get("/campaigns/:id/media-urls", async (req, reply) => {
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
+    const { campaignMediaTokenTtl } = await import("../lib/webhookToken.js");
+    const id = (req.params as { id: string }).id;
+    if (isRbacEnforceAdminPerms()) {
+      const auth = await requirePermissionBatch1(req, reply, "campaign_view", "GET /campaigns/:id/media-urls");
+      if (!auth) return;
+      if (!(await loadCampaignIfAccessible(reply, auth, id, "GET /campaigns/:id/media-urls", "campaign_view"))) {
+        return;
+      }
+    } else {
+      const auth = await requireOrg(req, reply);
+      if (!auth) return;
+      if (!(await canAccessCampaign(auth, id))) {
+        return reply.code(403).send({ error: "Forbidden" });
+      }
+    }
+    const base = publicBaseUrl(req);
+    const t = campaignMediaTokenTtl(id);
+    return {
+      voicemailRecordingUrl: `${base}/campaigns/${id}/voicemail-recording?t=${t}`,
+      voiceInstructionsUrl: `${base}/campaigns/${id}/voice-instructions?t=${t}`,
+      expiresInSec: 300,
+    };
+  });
+
   app.get("/campaigns/:id/voicemail-recording", async (req, reply) => {
     const id = (req.params as { id: string }).id;
     const token = (req.query as { t?: string }).t;
-    if (!req.auth?.sub && !verifyCampaignMediaToken(id, token)) {
+    // Token-only fetch — no permission gate (D5a).
+    if (!verifyCampaignMediaToken(id, token)) {
       return reply.code(403).send({ error: "Forbidden" });
     }
     const campaign = await prisma.campaign.findUnique({
@@ -347,7 +408,8 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   app.get("/campaigns/:id/voice-instructions", async (req, reply) => {
     const id = (req.params as { id: string }).id;
     const query = req.query as { contactId?: string; t?: string };
-    if (!req.auth?.sub && !verifyCampaignMediaToken(id, query.t)) {
+    // Token-only fetch — no permission gate (D5a).
+    if (!verifyCampaignMediaToken(id, query.t)) {
       return reply.code(403).send({ error: "Forbidden" });
     }
     const campaign = await prisma.campaign.findUnique({
@@ -363,10 +425,11 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     });
     if (!campaign) return reply.code(404).send({ error: "Not found" });
 
+    const { campaignMediaTokenTtl } = await import("../lib/webhookToken.js");
     const base = publicBaseUrl(req);
     const audioUrl =
       campaign.voicemailAudioData && campaign.voicemailAudioMimeType
-        ? `${base}/campaigns/${campaign.id}/voicemail-recording?t=${campaignMediaToken(campaign.id)}`
+        ? `${base}/campaigns/${campaign.id}/voicemail-recording?t=${campaignMediaTokenTtl(campaign.id)}`
         : null;
 
     return {
@@ -385,14 +448,29 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       },
     };
   });
-
   app.delete("/campaigns/:id", async (req, reply) => {
-    if (!(await enforceFunctionAccess(req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null }, reply, "campaign_delete"))) {
-      return;
-    }
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
     const id = (req.params as { id: string }).id;
-    const auth = await requireCampaignAccess(req, reply, id);
-    if (!auth) return;
+    let auth;
+    if (isRbacEnforceAdminPerms()) {
+      auth = await requirePermissionBatch1(req, reply, "campaign_delete", "DELETE /campaigns/:id");
+      if (!auth) return;
+      if (!(await loadCampaignIfAccessible(reply, auth, id, "DELETE /campaigns/:id", "campaign_delete"))) return;
+    } else {
+      if (
+        !(await enforceFunctionAccess(
+          req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
+          reply,
+          "campaign_delete",
+        ))
+      ) {
+        return;
+      }
+      auth = await requireCampaignAccess(req, reply, id);
+      if (!auth) return;
+    }
     await prisma.campaign.delete({ where: { id } });
     await writeAuditLog({
       organizationId: auth.orgId,
@@ -405,10 +483,39 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/campaigns/:id/contacts", async (req, reply) => {
-    if (!(await enforceFunctionAccess(req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null }, reply, "contact_import"))) {
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
+    const id = (req.params as { id: string }).id;
+    let importAuth: OrgAuth & { orgId: string } | null = null;
+    if (isRbacEnforceAdminPerms()) {
+      importAuth = await requirePermissionBatch1(
+        req,
+        reply,
+        "contact_import",
+        "POST /campaigns/:id/contacts",
+      );
+      if (!importAuth) return;
+      if (
+        !(await loadCampaignIfAccessible(
+          reply,
+          importAuth as Parameters<typeof loadCampaignIfAccessible>[1],
+          id,
+          "POST /campaigns/:id/contacts",
+          "contact_import",
+        ))
+      ) {
+        return;
+      }
+    } else if (
+      !(await enforceFunctionAccess(
+        req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
+        reply,
+        "contact_import",
+      ))
+    ) {
       return;
     }
-    const id = (req.params as { id: string }).id;
     const campaign = await prisma.campaign.findUnique({ where: { id }, select: { id: true } });
     if (!campaign) return reply.code(404).send({ error: "Campaign not found" });
 
@@ -435,8 +542,10 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       rows = parsed.rows;
     }
 
-    const importAuth = await requireCampaignAccess(req, reply, id);
-    if (!importAuth) return;
+    if (!importAuth) {
+      importAuth = await requireCampaignAccess(req, reply, id);
+      if (!importAuth) return;
+    }
     const dnc = new Set(
       (
         await prisma.dncEntry.findMany({
@@ -516,10 +625,23 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/campaigns/:id/start", async (req, reply) => {
-    if (!(await enforceFunctionAccess(req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null }, reply, "campaign_start"))) {
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
+    const id = (req.params as { id: string }).id;
+    if (isRbacEnforceAdminPerms()) {
+      const auth = await requirePermissionBatch1(req, reply, "campaign_start", "POST /campaigns/:id/start");
+      if (!auth) return;
+      if (!(await loadCampaignIfAccessible(reply, auth, id, "POST /campaigns/:id/start", "campaign_start"))) return;
+    } else if (
+      !(await enforceFunctionAccess(
+        req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
+        reply,
+        "campaign_start",
+      ))
+    ) {
       return;
     }
-    const id = (req.params as { id: string }).id;
     const c = await prisma.campaign.findUnique({
       where: { id },
       select: { kind: true, consentAttestedAt: true, smsTemplate: true },
@@ -615,7 +737,21 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/campaigns/:id/pause", async (req, reply) => {
-    if (!(await enforceFunctionAccess(req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null }, reply, "campaign_pause"))) {
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
+    const pauseId = (req.params as { id: string }).id;
+    if (isRbacEnforceAdminPerms()) {
+      const auth = await requirePermissionBatch1(req, reply, "campaign_pause", "POST /campaigns/:id/pause");
+      if (!auth) return;
+      if (!(await loadCampaignIfAccessible(reply, auth, pauseId, "POST /campaigns/:id/pause", "campaign_pause"))) return;
+    } else if (
+      !(await enforceFunctionAccess(
+        req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
+        reply,
+        "campaign_pause",
+      ))
+    ) {
       return;
     }
     const id = (req.params as { id: string }).id;
@@ -626,10 +762,23 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/campaigns/:id/resume", async (req, reply) => {
-    if (!(await enforceFunctionAccess(req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null }, reply, "campaign_resume"))) {
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
+    const id = (req.params as { id: string }).id;
+    if (isRbacEnforceAdminPerms()) {
+      const auth = await requirePermissionBatch1(req, reply, "campaign_resume", "POST /campaigns/:id/resume");
+      if (!auth) return;
+      if (!(await loadCampaignIfAccessible(reply, auth, id, "POST /campaigns/:id/resume", "campaign_resume"))) return;
+    } else if (
+      !(await enforceFunctionAccess(
+        req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
+        reply,
+        "campaign_resume",
+      ))
+    ) {
       return;
     }
-    const id = (req.params as { id: string }).id;
     const c = await prisma.campaign.findUnique({
       where: { id },
       select: { kind: true, consentAttestedAt: true },
@@ -724,10 +873,39 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/campaigns/:id/sms-template", async (req, reply) => {
-    if (!(await enforceFunctionAccess(req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null }, reply, "campaign_start"))) {
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
+    const id = (req.params as { id: string }).id;
+    // D3: campaign_create for SMS template write when enforce on.
+    if (isRbacEnforceAdminPerms()) {
+      const auth = await requirePermissionBatch1(
+        req,
+        reply,
+        "campaign_create",
+        "POST /campaigns/:id/sms-template",
+      );
+      if (!auth) return;
+      if (
+        !(await loadCampaignIfAccessible(
+          reply,
+          auth,
+          id,
+          "POST /campaigns/:id/sms-template",
+          "campaign_create",
+        ))
+      ) {
+        return;
+      }
+    } else if (
+      !(await enforceFunctionAccess(
+        req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
+        reply,
+        "campaign_start",
+      ))
+    ) {
       return;
     }
-    const id = (req.params as { id: string }).id;
     const parsed = z
       .object({ body: z.string().min(1).max(1600) })
       .safeParse(req.body ?? {});
@@ -757,7 +935,19 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/campaigns/:id/agent-disposition", async (req, reply) => {
-    if (
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const id = (req.params as { id: string }).id;
+    // D4: campaign_dial — Admin denied by matrix; Agent/Owner allowed.
+    if (isRbacEnforceAdminPerms()) {
+      const auth = await requirePermissionBatch1(
+        req,
+        reply,
+        "campaign_dial",
+        "POST /campaigns/:id/agent-disposition",
+      );
+      if (!auth) return;
+    } else if (
       !(await enforceFunctionAccess(
         req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
         reply,
@@ -771,7 +961,6 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         error: "Agent disposition is only used when Zoom Phone is the preferred integration.",
       });
     }
-    const id = (req.params as { id: string }).id;
     const body = agentDispositionSchema.parse(req.body);
     const campaign = await prisma.campaign.findUnique({
       where: { id },
@@ -831,7 +1020,18 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/campaigns/:id/agent-skip", async (req, reply) => {
-    if (
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const id = (req.params as { id: string }).id;
+    if (isRbacEnforceAdminPerms()) {
+      const auth = await requirePermissionBatch1(
+        req,
+        reply,
+        "campaign_dial",
+        "POST /campaigns/:id/agent-skip",
+      );
+      if (!auth) return;
+    } else if (
       !(await enforceFunctionAccess(
         req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
         reply,
@@ -845,7 +1045,6 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         error: "Agent skip is only used when Zoom Phone is the preferred integration.",
       });
     }
-    const id = (req.params as { id: string }).id;
     const body = agentSkipSchema.parse(req.body);
     const campaign = await prisma.campaign.findUnique({
       where: { id },
@@ -886,12 +1085,37 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/campaigns/:id/sms", async (req, reply) => {
-    if (!(await enforceFunctionAccess(req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null }, reply, "sms_broadcast"))) {
-      return;
-    }
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
     const id = (req.params as { id: string }).id;
-    const auth = await requireCampaignAccess(req, reply, id);
-    if (!auth) return;
+    let auth: OrgAuth & { orgId: string } | null = null;
+    if (isRbacEnforceAdminPerms()) {
+      auth = await requirePermissionBatch1(req, reply, "sms_broadcast", "POST /campaigns/:id/sms");
+      if (!auth) return;
+      if (
+        !(await loadCampaignIfAccessible(
+          reply,
+          auth as Parameters<typeof loadCampaignIfAccessible>[1],
+          id,
+          "POST /campaigns/:id/sms",
+          "sms_broadcast",
+        ))
+      ) {
+        return;
+      }
+    } else if (
+      !(await enforceFunctionAccess(
+        req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
+        reply,
+        "sms_broadcast",
+      ))
+    ) {
+      return;
+    } else {
+      auth = await requireCampaignAccess(req, reply, id);
+      if (!auth) return;
+    }
     const parsed = smsBodySchema.parse(req.body);
 
     const where =
@@ -912,12 +1136,41 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.patch("/campaigns/:id/contacts/:contactId/notes", async (req, reply) => {
-    if (!(await enforceFunctionAccess(req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null }, reply, "campaign_notes"))) {
-      return;
-    }
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
     const { id, contactId } = req.params as { id: string; contactId: string };
-    const auth = await requireCampaignAccess(req, reply, id);
-    if (!auth) return;
+    if (isRbacEnforceAdminPerms()) {
+      const auth = await requirePermissionBatch1(
+        req,
+        reply,
+        "campaign_notes",
+        "PATCH /campaigns/:id/contacts/:contactId/notes",
+      );
+      if (!auth) return;
+      if (
+        !(await loadCampaignIfAccessible(
+          reply,
+          auth,
+          id,
+          "PATCH /campaigns/:id/contacts/:contactId/notes",
+          "campaign_notes",
+        ))
+      ) {
+        return;
+      }
+    } else if (
+      !(await enforceFunctionAccess(
+        req as { auth: { sub: string; role: "user" | "admin" | "owner" } | null },
+        reply,
+        "campaign_notes",
+      ))
+    ) {
+      return;
+    } else {
+      const auth = await requireCampaignAccess(req, reply, id);
+      if (!auth) return;
+    }
     const body = z.object({ notes: z.string().max(4000) }).parse(req.body);
     const contact = await prisma.contact.findFirst({
       where: { id: contactId, campaignId: id },
@@ -933,9 +1186,21 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/campaigns/:id/attempts", async (req, reply) => {
+    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
+    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
+    const { loadCampaignIfAccessible } = await import("../rbac/campaignAccess.js");
     const id = (req.params as { id: string }).id;
-    const auth = await requireCampaignAccess(req, reply, id);
-    if (!auth) return;
+    // campaign_view + startedBy-only; Admin sees team attempts under owned campaigns (G4b).
+    if (isRbacEnforceAdminPerms()) {
+      const auth = await requirePermissionBatch1(req, reply, "campaign_view", "GET /campaigns/:id/attempts");
+      if (!auth) return;
+      if (!(await loadCampaignIfAccessible(reply, auth, id, "GET /campaigns/:id/attempts", "campaign_view"))) {
+        return;
+      }
+    } else {
+      const auth = await requireCampaignAccess(req, reply, id);
+      if (!auth) return;
+    }
     const [calls, sms] = await Promise.all([
       prisma.callAttempt.findMany({
         where: { campaignId: id },

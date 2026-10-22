@@ -97,7 +97,9 @@ export async function requirePermission(
 ): Promise<(OrgAuth & { orgId: string }) | null> {
   const auth = await requireOrg(req, reply);
   if (!auth) return null;
-  if (isPlatformAdmin(auth) || isOrgAdminRole(auth.orgRole)) return auth;
+  // Platform operators still bypass; ORG_ADMIN short-circuit removed (Batch 4).
+  // enforceFunctionAccess delegates here — no separate Admin short-circuit to remove.
+  if (isPlatformAdmin(auth)) return auth;
   const membership = await prisma.membership.findUnique({
     where: { id: auth.membershipId },
     select: { permissions: true, orgRole: true, status: true },

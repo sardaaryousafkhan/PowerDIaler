@@ -78,7 +78,11 @@ export async function requirePermissionBatch1(
   if (!auth) return null;
 
   if (!enforceMatrixAllows(auth.orgRole, permission)) {
-    await denyWithAudit(reply, auth, { path, requiredPermission: permission });
+    await denyWithAudit(reply, auth, {
+      path,
+      requiredPermission: permission,
+      reason: permission === "members_change_role" ? "role_escalation" : "forbidden",
+    });
     return null;
   }
   return auth;

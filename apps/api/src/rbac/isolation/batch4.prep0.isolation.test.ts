@@ -62,6 +62,7 @@ describe("Batch 4-prep-0 members_change_role (enforce on)", () => {
     const meta = JSON.parse(audit.meta) as { path?: string; requiredPermission?: string; reason?: string };
     assert.equal(meta.path, "PATCH /admin/access/users/:id");
     assert.equal(meta.requiredPermission, "members_change_role");
+    assert.equal(meta.reason, "role_escalation");
     const row = await prisma.membership.findUniqueOrThrow({ where: { id: fx.adminA.membershipId } });
     assert.equal(row.orgRole, "ORG_ADMIN", "role must not change");
   });
@@ -76,11 +77,12 @@ describe("Batch 4-prep-0 members_change_role (enforce on)", () => {
     assert.equal(res.statusCode, 403);
     const audit = await lastDenied(fx.adminA.userId);
     assert.ok(audit);
-    const meta = JSON.parse(audit.meta) as { requiredPermission?: string };
+    const meta = JSON.parse(audit.meta) as { requiredPermission?: string; reason?: string };
     assert.equal(meta.requiredPermission, "members_change_role");
+    assert.equal(meta.reason, "role_escalation");
   });
 
-  it("Admin → change other Admin (Admin B) role → 403 + audit", async () => {
+  it("Admin → demote Admin B (another team) → 403 + audit", async () => {
     const res = await app.inject({
       method: "PATCH",
       url: `/admin/access/users/${fx.adminB.userId}`,
@@ -90,9 +92,10 @@ describe("Batch 4-prep-0 members_change_role (enforce on)", () => {
     assert.equal(res.statusCode, 403);
     const audit = await lastDenied(fx.adminA.userId);
     assert.ok(audit);
-    const meta = JSON.parse(audit.meta) as { requiredPermission?: string; path?: string };
+    const meta = JSON.parse(audit.meta) as { requiredPermission?: string; path?: string; reason?: string };
     assert.equal(meta.requiredPermission, "members_change_role");
     assert.equal(meta.path, "PATCH /admin/access/users/:id");
+    assert.equal(meta.reason, "role_escalation");
   });
 
   it("Agent → PATCH role → 403", async () => {
@@ -138,30 +141,4 @@ describe("Batch 4-prep-0 members_change_role (enforce on)", () => {
     });
   });
 
-  it("Admin → DELETE /org/members/:id → 403 + audit members_change_role", async () => {
-    const res = await app.inject({
-      method: "DELETE",
-      url: `/org/members/${fx.u1.userId}`,
-      headers: auth("adminA"),
-    });
-    assert.equal(res.statusCode, 403);
-    const audit = await lastDenied(fx.adminA.userId);
-    assert.ok(audit);
-    const meta = JSON.parse(audit.meta) as { path?: string; requiredPermission?: string };
-    assert.equal(meta.path, "DELETE /org/members/:id");
-    assert.equal(meta.requiredPermission, "members_change_role");
-    const row = await prisma.membership.findUniqueOrThrow({ where: { id: fx.u1.membershipId } });
-    assert.equal(row.status, "ACTIVE");
-  });
-
-  it("Owner → DELETE member → 200", async () => {
-    const res = await app.inject({
-      method: "DELETE",
-      url: `/org/members/${fx.u3.userId}`,
-      headers: auth("owner"),
-    });
-    assert.equal(res.statusCode, 200);
-    const row = await prisma.membership.findUniqueOrThrow({ where: { id: fx.u3.membershipId } });
-    assert.equal(row.status, "DISABLED");
-  });
 });

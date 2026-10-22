@@ -120,7 +120,7 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
           await denyWithAudit(reply, auth, {
             path: "PATCH /admin/access/users/:id",
             requiredPermission: "members_change_role",
-            reason: "privilege_escalation_blocked",
+            reason: "role_escalation",
           });
           return;
         }
@@ -131,7 +131,7 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
       await denyWithAudit(reply, auth, {
         path: "PATCH /admin/access/users/:id",
         requiredPermission: "members_change_role",
-        reason: "privilege_escalation_blocked",
+        reason: "role_escalation",
       });
       return;
     }
@@ -259,12 +259,8 @@ export async function adminAccessRoutes(app: FastifyInstance): Promise<void> {
 
   /** Remove a member from the company (keeps the user account; disables membership). */
   app.delete("/org/members/:id", async (req, reply) => {
-    const { isRbacEnforceAdminPerms } = await import("../rbac/enforceFlag.js");
-    const { requirePermissionBatch1 } = await import("../rbac/permissionGate.js");
-    // Batch 4-prep-0: re-key to members_change_role (Owner-only when enforce on).
-    const auth = isRbacEnforceAdminPerms()
-      ? await requirePermissionBatch1(req, reply, "members_change_role", "DELETE /org/members/:id")
-      : await requirePermission(req, reply, "members_manage");
+    // Prep-0b: C3 reassignment + members_change_role re-key (not in prep-0 — orphan risk).
+    const auth = await requirePermission(req, reply, "members_manage");
     if (!auth) return;
     const id = (req.params as { id: string }).id;
     if (id === auth.sub) return reply.code(400).send({ error: "You cannot remove yourself." });

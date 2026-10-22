@@ -78,7 +78,7 @@ Unchanged from PR #6: bypass-removal is its own PR (one commit, one file). Stagi
 | # | Endpoint | Current state | New key | Scope | ☐g | ☐t | ☐a |
 |---|----------|---------------|---------|-------|----|----|----|
 | **A0** | `PATCH /admin/access/users/:id` | `members_manage` | **`members_change_role`** | Owner-only (prep-0) | | | |
-| **A0b** | `DELETE /org/members/:id` | `members_manage` | **`members_change_role`** | Owner / demote (prep-0) | | | |
+| **A0b** | `DELETE /org/members/:id` | `members_manage` | **`members_change_role` + C3 reassignment** | **prep-0b** (orphan risk — not in prep-0) | | | |
 | A1 | `PUT /campaigns/:id/assignments` | `members_manage` | `members_manage` | startedBy-only (D2a) | | | |
 | A2 | `GET /org/audit-logs` | `members_manage` | `audit_view` | actor OR target (D7) | | | |
 | A3 | `POST /campaigns` | `campaign_create` | `campaign_create` | stamp startedByUserId | | | |
@@ -98,7 +98,7 @@ Unchanged from PR #6: bypass-removal is its own PR (one commit, one file). Stagi
 | A17 | `GET .../voice-instructions` | auth or token | token (D5a) | same | | | |
 | A18 | `DELETE /dnc/:e164` | dnc_manage | `dnc_delete` | team delete; Owner entries protected (D6) | | | |
 
-**Priority-zero:** A0 + A0b = **Batch 4-prep-0**.
+**Priority-zero:** A0 = **Batch 4-prep-0** (PATCH only). A0b + C3 reassignment/audit = **prep-0b** (G1 cannot go green until prep-0b lands).
 
 ---
 

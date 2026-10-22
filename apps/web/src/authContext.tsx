@@ -8,6 +8,8 @@ import {
 } from "./api.js";
 import { clearAuthToken, readAuthToken, writeAuthToken } from "./authStore.js";
 import type { FunctionPermissionKey } from "@powerdialer/shared";
+import { isRbacNavEnabled } from "./featureFlags.js";
+import { clientMatrixAllows } from "./nav/clientPermissionMatrix.js";
 
 type AuthUser = {
   id: string;
@@ -85,6 +87,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       signingIn,
       can(permission) {
+        // Staging/prod flip UI: when rbacNav is on, match backend matrix (not legacy Admin=all).
+        if (isRbacNavEnabled() && organization?.orgRole) {
+          return clientMatrixAllows(organization.orgRole, permission);
+        }
+        // Legacy (flag-off / rbacNav off): Admin/Owner UI bypass — matches pre-Batch-4 backend.
         if (user?.role === "admin" || user?.role === "owner") return true;
         if (organization?.orgRole === "ORG_OWNER" || organization?.orgRole === "ORG_ADMIN") return true;
         return Boolean(permissions[permission]);
